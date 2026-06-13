@@ -318,10 +318,10 @@ def run_codex(prompt: str, cwd: Path, model: str, codex_bin: str, schema: dict[s
             str(schema_path),
             "-o",
             str(output_path),
-            "-",
         ]
         if model:
             command.extend(["--model", model])
+        command.append("-")
 
         run_subprocess(command, cwd=cwd, stdin=prompt)
         if not output_path.is_file():
