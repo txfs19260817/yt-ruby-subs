@@ -312,8 +312,6 @@ def run_codex(prompt: str, cwd: Path, model: str, codex_bin: str, schema: dict[s
             "--skip-git-repo-check",
             "--sandbox",
             "read-only",
-            "-a",
-            "never",
             "-C",
             str(cwd),
             "--output-schema",
