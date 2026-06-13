@@ -5,11 +5,12 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .constants import OUTPUT_SCHEMA
+from .constants import CORRECTED_OUTPUT_SCHEMA, RUBY_OUTPUT_SCHEMA, SUMMARY_OUTPUT_SCHEMA
 from .errors import CliError
 from .models import GenerationResult
 from .player import (
@@ -19,7 +20,7 @@ from .player import (
     parse_vtt_cues_from_text,
 )
 from .process_utils import normalize_newlines, parse_json_file, resolve_command, run_subprocess
-from .prompts import build_prompt
+from .prompts import build_corrected_prompt, build_ruby_prompt, build_summary_prompt
 
 
 def generate_outputs(
@@ -35,10 +36,13 @@ def generate_outputs(
     prompt_extra: str,
 ) -> GenerationResult:
     output_dir.mkdir(parents=True, exist_ok=True)
-    prompt = build_prompt(subtitle_file, prompt_extra)
-    payload = run_generation_backend(
+    stem = base_name or f"{subtitle_file.stem}.ruby"
+    corrected_path = output_dir / f"{stem}.corrected.vtt"
+    webvtt_path = output_dir / f"{stem}.vtt"
+    summary_path = output_dir / f"{stem}.summary.txt"
+
+    backend = BackendOptions(
         provider=provider,
-        prompt=prompt,
         subtitle_dir=subtitle_file.parent,
         model=model,
         api_base_url=api_base_url,
@@ -46,31 +50,32 @@ def generate_outputs(
         claude_bin=claude_bin,
     )
 
-    stem = base_name or f"{subtitle_file.stem}.ruby"
-    corrected_path = output_dir / f"{stem}.corrected.vtt"
-    webvtt_path = output_dir / f"{stem}.vtt"
-
-    corrected_text = normalize_vtt_output(payload, "corrected_vtt")
-    webvtt_text = normalize_vtt_output(payload, "webvtt")
-
-    if not corrected_text.startswith("WEBVTT"):
-        raise CliError("generated corrected subtitle does not start with WEBVTT")
-    if not webvtt_text.startswith("WEBVTT"):
-        raise CliError("generated WebVTT does not start with WEBVTT")
+    corrected_text = get_corrected_vtt(
+        subtitle_file=subtitle_file,
+        corrected_path=corrected_path,
+        prompt_extra=prompt_extra,
+        backend=backend,
+    )
+    webvtt_text = get_ruby_vtt(
+        corrected_text=corrected_text,
+        webvtt_path=webvtt_path,
+        backend=backend,
+    )
 
     for warning in validate_outputs(corrected_text, webvtt_text):
         print(f"warning: {warning}", file=sys.stderr)
 
-    corrected_path.write_text(corrected_text, encoding="utf-8")
-    webvtt_path.write_text(webvtt_text, encoding="utf-8")
-
+    summary = get_summary(
+        corrected_text=corrected_text,
+        summary_path=summary_path,
+        backend=backend,
+    )
     player_path = maybe_generate_player(
         output_dir=output_dir,
         stem=stem,
         subtitle_file=subtitle_file,
         webvtt_path=webvtt_path,
     )
-    summary = payload.get("summary")
     write_generation_manifest(
         output_dir=output_dir,
         stem=stem,
@@ -93,10 +98,97 @@ def generate_outputs(
     )
 
 
+@dataclass(slots=True)
+class BackendOptions:
+    provider: str
+    subtitle_dir: Path
+    model: str
+    api_base_url: str
+    codex_bin: str
+    claude_bin: str
+
+
+def get_corrected_vtt(
+    *,
+    subtitle_file: Path,
+    corrected_path: Path,
+    prompt_extra: str,
+    backend: BackendOptions,
+) -> str:
+    if corrected_path.is_file():
+        return read_existing_vtt(corrected_path, "corrected_vtt")
+
+    payload = run_generation_backend(
+        provider=backend.provider,
+        prompt=build_corrected_prompt(subtitle_file, prompt_extra),
+        schema=CORRECTED_OUTPUT_SCHEMA,
+        subtitle_dir=backend.subtitle_dir,
+        model=backend.model,
+        api_base_url=backend.api_base_url,
+        codex_bin=backend.codex_bin,
+        claude_bin=backend.claude_bin,
+    )
+    corrected_text = normalize_vtt_output(payload, "corrected_vtt")
+    if not corrected_text.startswith("WEBVTT"):
+        raise CliError("generated corrected subtitle does not start with WEBVTT")
+    validate_vtt(corrected_text, "corrected_vtt")
+    corrected_path.write_text(corrected_text, encoding="utf-8")
+    return corrected_text
+
+
+def get_ruby_vtt(*, corrected_text: str, webvtt_path: Path, backend: BackendOptions) -> str:
+    if webvtt_path.is_file():
+        return read_existing_vtt(webvtt_path, "webvtt")
+
+    payload = run_generation_backend(
+        provider=backend.provider,
+        prompt=build_ruby_prompt(corrected_text),
+        schema=RUBY_OUTPUT_SCHEMA,
+        subtitle_dir=backend.subtitle_dir,
+        model=backend.model,
+        api_base_url=backend.api_base_url,
+        codex_bin=backend.codex_bin,
+        claude_bin=backend.claude_bin,
+    )
+    webvtt_text = normalize_vtt_output(payload, "webvtt")
+    if not webvtt_text.startswith("WEBVTT"):
+        raise CliError("generated WebVTT does not start with WEBVTT")
+    validate_outputs(corrected_text, webvtt_text)
+    webvtt_path.write_text(webvtt_text, encoding="utf-8")
+    return webvtt_text
+
+
+def get_summary(*, corrected_text: str, summary_path: Path, backend: BackendOptions) -> str:
+    if summary_path.is_file():
+        return summary_path.read_text(encoding="utf-8").strip()
+
+    payload = run_generation_backend(
+        provider=backend.provider,
+        prompt=build_summary_prompt(corrected_text),
+        schema=SUMMARY_OUTPUT_SCHEMA,
+        subtitle_dir=backend.subtitle_dir,
+        model=backend.model,
+        api_base_url=backend.api_base_url,
+        codex_bin=backend.codex_bin,
+        claude_bin=backend.claude_bin,
+    )
+    summary = str(payload.get("summary", "")).strip()
+    summary_path.write_text(summary + "\n", encoding="utf-8")
+    return summary
+
+
+def read_existing_vtt(path: Path, label: str) -> str:
+    text = normalize_newlines(path.read_text(encoding="utf-8-sig")).strip() + "\n"
+    if not text.startswith("WEBVTT"):
+        raise CliError(f"existing {label} does not start with WEBVTT: {path}")
+    return text
+
+
 def run_generation_backend(
     *,
     provider: str,
     prompt: str,
+    schema: dict[str, Any],
     subtitle_dir: Path,
     model: str,
     api_base_url: str,
@@ -104,11 +196,11 @@ def run_generation_backend(
     claude_bin: str,
 ) -> dict[str, Any]:
     if provider == "codex":
-        return run_codex(prompt, subtitle_dir, model, codex_bin)
+        return run_codex(prompt, subtitle_dir, model, codex_bin, schema)
     if provider == "claude":
-        return run_claude(prompt, subtitle_dir, model, claude_bin)
+        return run_claude(prompt, subtitle_dir, model, claude_bin, schema)
     if provider == "api":
-        return run_chat_api(prompt, model, api_base_url)
+        return run_chat_api(prompt, model, api_base_url, schema)
     raise CliError(f"unsupported provider: {provider}")
 
 
@@ -205,14 +297,14 @@ def strip_to_plain(text: str) -> str:
     return re.sub(r"\s+", "", text)
 
 
-def run_codex(prompt: str, cwd: Path, model: str, codex_bin: str) -> dict[str, Any]:
+def run_codex(prompt: str, cwd: Path, model: str, codex_bin: str, schema: dict[str, Any]) -> dict[str, Any]:
     codex = resolve_command(codex_bin, windows_preferred=("codex.cmd", "codex.exe", "codex"))
 
     with tempfile.TemporaryDirectory(prefix="yt-ruby-subs-codex-") as temp_dir_str:
         temp_dir = Path(temp_dir_str)
         schema_path = temp_dir / "schema.json"
         output_path = temp_dir / "result.json"
-        schema_path.write_text(json.dumps(OUTPUT_SCHEMA, ensure_ascii=False, indent=2), encoding="utf-8")
+        schema_path.write_text(json.dumps(schema, ensure_ascii=False, indent=2), encoding="utf-8")
 
         command = [
             codex,
@@ -240,7 +332,7 @@ def run_codex(prompt: str, cwd: Path, model: str, codex_bin: str) -> dict[str, A
         return parse_json_file(output_path)
 
 
-def run_claude(prompt: str, cwd: Path, model: str, claude_bin: str) -> dict[str, Any]:
+def run_claude(prompt: str, cwd: Path, model: str, claude_bin: str, schema: dict[str, Any]) -> dict[str, Any]:
     claude = resolve_command(claude_bin, windows_preferred=("claude.exe", "claude.cmd", "claude"))
     command = [
         claude,
@@ -248,7 +340,7 @@ def run_claude(prompt: str, cwd: Path, model: str, claude_bin: str) -> dict[str,
         "--output-format",
         "json",
         "--json-schema",
-        json.dumps(OUTPUT_SCHEMA, ensure_ascii=False),
+        json.dumps(schema, ensure_ascii=False),
         "--tools=",
     ]
     if model:
@@ -269,7 +361,7 @@ def run_claude(prompt: str, cwd: Path, model: str, claude_bin: str) -> dict[str,
     raise CliError("Claude returned JSON, but not an object payload")
 
 
-def run_chat_api(prompt: str, model: str, api_base_url: str) -> dict[str, Any]:
+def run_chat_api(prompt: str, model: str, api_base_url: str, schema: dict[str, Any]) -> dict[str, Any]:
     api_key = resolve_api_key()
     body: dict[str, Any] = {
         "messages": [
@@ -291,7 +383,7 @@ def run_chat_api(prompt: str, model: str, api_base_url: str) -> dict[str, Any]:
             "json_schema": {
                 "name": "yt_ruby_subs_response",
                 "strict": True,
-                "schema": OUTPUT_SCHEMA,
+                "schema": schema,
             },
         },
     }
@@ -328,7 +420,7 @@ def run_chat_api(prompt: str, model: str, api_base_url: str) -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise CliError(f"failed to parse chat API response as JSON: {exc}") from exc
 
-    return parse_chat_api_payload(payload)
+    return parse_chat_api_payload(payload, tuple(schema["properties"]))
 
 
 def resolve_api_key() -> str:
@@ -342,8 +434,8 @@ def resolve_api_key() -> str:
     )
 
 
-def parse_chat_api_payload(payload: Any) -> dict[str, Any]:
-    if isinstance(payload, dict) and all(key in payload for key in ("corrected_vtt", "webvtt")):
+def parse_chat_api_payload(payload: Any, expected_keys: tuple[str, ...]) -> dict[str, Any]:
+    if isinstance(payload, dict) and all(key in payload for key in expected_keys):
         return payload
 
     if not isinstance(payload, dict):

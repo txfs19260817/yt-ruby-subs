@@ -14,13 +14,40 @@ VIDEO_EXTENSIONS = {
     ".m2ts",
 }
 
-OUTPUT_SCHEMA: dict[str, Any] = {
+CORRECTED_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
         "corrected_vtt": {"type": "string", "minLength": 1},
+    },
+    "required": ["corrected_vtt"],
+}
+
+RUBY_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
         "webvtt": {"type": "string", "minLength": 1},
+    },
+    "required": ["webvtt"],
+}
+
+SUMMARY_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
         "summary": {"type": "string"},
+    },
+    "required": ["summary"],
+}
+
+OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        **CORRECTED_OUTPUT_SCHEMA["properties"],
+        **RUBY_OUTPUT_SCHEMA["properties"],
+        **SUMMARY_OUTPUT_SCHEMA["properties"],
     },
     "required": ["corrected_vtt", "webvtt", "summary"],
 }

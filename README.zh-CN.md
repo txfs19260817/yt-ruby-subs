@@ -102,9 +102,12 @@ uv run yt-ruby-subs player ".\downloads\example\video.webm" ".\downloads\example
 
 - `<name>.ruby.corrected.vtt`: 修正后的字幕
 - `<name>.ruby.vtt`: 带 ruby 注音的字幕
+- `<name>.ruby.summary.txt`: 视频简介
 - `<name>.ruby.player.html`: 本地播放器
 - `<name>.ruby.manifest.json`: 生成记录
 - `download-manifest.json`: 下载记录
+
+生成流程会分阶段写入文件。如果运行在写出 `<name>.ruby.corrected.vtt` 或 `<name>.ruby.vtt` 后中断，重新运行同一条命令会复用已经完成的阶段。
 
 写入前会检查生成的 WebVTT。没有任何 cue 的文件会直接失败。空 cue、时间顺序异常等问题会以 `warning:` 打印出来。
 

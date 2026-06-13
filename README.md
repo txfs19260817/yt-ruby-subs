@@ -102,9 +102,12 @@ Typical outputs:
 
 - `<name>.ruby.corrected.vtt`: corrected transcript
 - `<name>.ruby.vtt`: ruby subtitle file
+- `<name>.ruby.summary.txt`: short clip summary
 - `<name>.ruby.player.html`: local player page
 - `<name>.ruby.manifest.json`: generation details
 - `download-manifest.json`: download details
+
+Generation runs in stages. If a run is interrupted after `<name>.ruby.corrected.vtt` or `<name>.ruby.vtt` is written, rerun the same command and it will reuse the existing stage output.
 
 Generated WebVTT is checked before it is written. A file with zero cues fails the run. Softer problems, such as empty cues or timing issues, are printed as `warning:` lines.
 

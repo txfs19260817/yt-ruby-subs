@@ -2,14 +2,14 @@ import textwrap
 from pathlib import Path
 
 
-def build_prompt(subtitle_file: Path, prompt_extra: str) -> str:
+def build_corrected_prompt(subtitle_file: Path, prompt_extra: str) -> str:
     content = subtitle_file.read_text(encoding="utf-8-sig")
     instructions = textwrap.dedent(
         """
         You prepare Japanese subtitles for shadowing (read-aloud / follow-along)
-        practice. Convert the subtitle file below into TWO WebVTT outputs.
+        practice. Convert the subtitle file below into one corrected WebVTT output.
 
-        OUTPUT 1 — "corrected_vtt": a cleaned plain-text transcript.
+        Output "corrected_vtt": a cleaned plain-text transcript.
           - Start the file with the line WEBVTT.
           - The source is often a YouTube auto-caption "rolling" track where each
             cue repeats the previous line plus a few new words. Collapse those
@@ -28,18 +28,6 @@ def build_prompt(subtitle_file: Path, prompt_extra: str) -> str:
             source has them and they still sit between the right words; they drive
             per-word highlighting in the player. Drop only the ones you break.
           - Do NOT add ruby/furigana in this output.
-
-        OUTPUT 2 — "webvtt": OUTPUT 1 with ruby furigana added.
-          - Start with WEBVTT and reuse OUTPUT 1's cues, timing and line breaks
-            exactly. Same number of cues, same text — only ruby markup is added.
-          - Annotate every kanji word with <ruby>漢字<rt>かんじ</rt></ruby>.
-            Group whole words (e.g. <ruby>仕事<rt>しごと</rt></ruby>), not single
-            characters, so readings are natural. Leave kana untouched.
-          - For an uncertain reading, pick the most likely one.
-          - Keep the inline <00:00:12.345> tags in the same positions as OUTPUT 1.
-
-        OUTPUT 3 — "summary": one short sentence (Japanese or English) describing
-        the clip, for display only.
 
         Rules:
           - Return JSON only, matching the provided schema. No Markdown fences.
@@ -60,3 +48,44 @@ def build_prompt(subtitle_file: Path, prompt_extra: str) -> str:
         f"{content}\n"
         "</subtitle_file>\n"
     )
+
+
+def build_ruby_prompt(corrected_vtt: str) -> str:
+    instructions = textwrap.dedent(
+        """
+        Add ruby/furigana markup to the corrected WebVTT below.
+
+        Output "webvtt": the corrected WebVTT with ruby furigana added.
+          - Start with WEBVTT and reuse the corrected cues, timing and line breaks
+            exactly. Same number of cues, same plain text. Only ruby markup is added.
+          - Annotate every kanji word with <ruby>漢字<rt>かんじ</rt></ruby>.
+            Group whole words (e.g. <ruby>仕事<rt>しごと</rt></ruby>), not single
+            characters, so readings are natural. Leave kana untouched.
+          - For an uncertain reading, pick the most likely one.
+          - Keep inline word-level timestamp tags like <00:00:12.345> in the same positions.
+
+        Rules:
+          - Return JSON only, matching the provided schema. No Markdown fences.
+          - Do not run shell commands or inspect the environment.
+        """
+    ).strip()
+    return f"{instructions}\n\n<corrected_vtt>\n{corrected_vtt}\n</corrected_vtt>\n"
+
+
+def build_summary_prompt(corrected_vtt: str) -> str:
+    instructions = textwrap.dedent(
+        """
+        Write one short sentence describing the clip represented by the corrected WebVTT below.
+
+        Output "summary": one short sentence in Japanese or English, for display only.
+
+        Rules:
+          - Return JSON only, matching the provided schema. No Markdown fences.
+          - Do not run shell commands or inspect the environment.
+        """
+    ).strip()
+    return f"{instructions}\n\n<corrected_vtt>\n{corrected_vtt}\n</corrected_vtt>\n"
+
+
+def build_prompt(subtitle_file: Path, prompt_extra: str) -> str:
+    return build_corrected_prompt(subtitle_file, prompt_extra)
