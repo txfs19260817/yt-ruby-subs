@@ -21,6 +21,7 @@ from .player import (
 )
 from .process_utils import normalize_newlines, parse_json_file, resolve_command, run_subprocess
 from .prompts import build_corrected_prompt, build_ruby_prompt, build_summary_prompt
+from .timing import restore_inline_timestamps
 
 
 def generate_outputs(
@@ -50,17 +51,22 @@ def generate_outputs(
         claude_bin=claude_bin,
     )
 
+    source_text = subtitle_file.read_text(encoding="utf-8-sig")
     corrected_text = get_corrected_vtt(
         subtitle_file=subtitle_file,
         corrected_path=corrected_path,
         prompt_extra=prompt_extra,
         backend=backend,
     )
+    corrected_text = restore_inline_timestamps(source_text, corrected_text)
+    write_text_if_changed(corrected_path, corrected_text)
     webvtt_text = get_ruby_vtt(
         corrected_text=corrected_text,
         webvtt_path=webvtt_path,
         backend=backend,
     )
+    webvtt_text = restore_inline_timestamps(corrected_text, webvtt_text)
+    write_text_if_changed(webvtt_path, webvtt_text)
 
     for warning in validate_outputs(corrected_text, webvtt_text):
         print(f"warning: {warning}", file=sys.stderr)
@@ -182,6 +188,12 @@ def read_existing_vtt(path: Path, label: str) -> str:
     if not text.startswith("WEBVTT"):
         raise CliError(f"existing {label} does not start with WEBVTT: {path}")
     return text
+
+
+def write_text_if_changed(path: Path, text: str) -> None:
+    if path.is_file() and normalize_newlines(path.read_text(encoding="utf-8-sig")).strip() + "\n" == text:
+        return
+    path.write_text(text, encoding="utf-8")
 
 
 def run_generation_backend(
