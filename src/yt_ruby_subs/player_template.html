@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>__PAGE_TITLE__</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <style>
+    :root {
+      --study-accent: #ff8b4a;
+      --study-accent-soft: #3f2618;
+      --study-word: #ffd166;
+      --study-border: rgba(255, 255, 255, 0.1);
+      --study-panel: #171a20;
+      --study-panel-2: #20252d;
+      --study-text: #f3ede6;
+      --study-muted: #b8aa9c;
+    }
+    html { color-scheme: dark; height: 100%; overflow: hidden; }
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top left, rgba(255, 139, 74, 0.12) 0%, transparent 24%),
+        radial-gradient(circle at bottom right, rgba(92, 124, 250, 0.12) 0%, transparent 22%),
+        linear-gradient(180deg, #0f1115 0%, #141821 52%, #0f1319 100%);
+      color: var(--study-text);
+    }
+    main.container-fluid { padding: 1rem; height: 100vh; overflow: hidden; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.92fr);
+      gap: 1rem;
+      height: calc(100vh - 2rem);
+      min-height: 0;
+    }
+    article {
+      margin: 0;
+      background: var(--study-panel);
+      color: var(--study-text);
+      border: 1px solid var(--study-border);
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
+      min-height: 0;
+      overflow: hidden;
+    }
+    .video-panel { display: flex; flex-direction: column; gap: 0.6rem; }
+    article h1, article h2, article p, article small, article div, article header { color: inherit; }
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.15rem;
+    }
+    .title-row h1, .sidebar header h2 { margin: 0; }
+    .title-row h1 { font-size: clamp(1.2rem, 1.7vw, 1.6rem); line-height: 1.25; min-width: 0; }
+    .title-link {
+      font-size: 0.82rem;
+      color: var(--study-accent);
+      text-decoration: none;
+      white-space: nowrap;
+      margin-left: 0.4rem;
+    }
+    .meta-line { margin: 0; font-size: 0.85rem; }
+    .player-shell {
+      flex: 1 1 auto;
+      min-height: 200px;
+      background: #000;
+      border-radius: 1rem;
+      overflow: hidden;
+    }
+    .player-shell iframe, .player-shell video { width: 100%; height: 100%; border: 0; display: block; }
+
+    .toolbar {
+      flex: 0 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .toolbar button {
+      width: auto;
+      margin: 0;
+      padding: 0.4rem 0.7rem;
+      font-size: 0.85rem;
+      line-height: 1;
+      border-radius: 0.6rem;
+      border: 1px solid var(--study-border);
+      background: var(--study-panel-2);
+      color: var(--study-text);
+      cursor: pointer;
+    }
+    .toolbar button:hover { border-color: var(--study-accent); }
+    .toolbar button.on {
+      border-color: var(--study-accent);
+      background: var(--study-accent-soft);
+      color: #ffd9bf;
+    }
+    .toolbar .spacer { flex: 1 1 auto; }
+    .speed-group { display: inline-flex; gap: 0.25rem; align-items: center; }
+    .speed-group small { color: var(--study-muted); margin-right: 0.15rem; }
+    .speed-group button { padding: 0.35rem 0.5rem; font-variant-numeric: tabular-nums; }
+
+    .now-playing { flex: 0 0 auto; }
+    .now-playing small { color: var(--study-muted); }
+    .sidebar { display: flex; flex-direction: column; min-height: 0; }
+    .sidebar header { margin-bottom: 0.6rem; }
+    .shortcuts { font-size: 0.78rem; color: var(--study-muted); margin: 0.35rem 0 0; }
+    .shortcuts summary { cursor: pointer; }
+    .shortcuts kbd {
+      background: var(--study-panel-2);
+      border: 1px solid var(--study-border);
+      border-radius: 0.35rem;
+      padding: 0.05rem 0.35rem;
+      font-size: 0.74rem;
+    }
+    .cue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      overflow: auto;
+      min-height: 0;
+      flex: 1 1 auto;
+      padding-right: 0.25rem;
+    }
+    .cue-button {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0.9rem;
+      background: var(--study-panel-2);
+      color: var(--study-text);
+      padding: 0.8rem 1rem;
+      cursor: pointer;
+      margin: 0;
+    }
+    .cue-button.active {
+      border-color: var(--study-accent);
+      background: var(--study-accent-soft);
+      box-shadow: 0 0 0 1px rgba(184, 92, 47, 0.08);
+    }
+    .cue-button.loop-cue { box-shadow: 0 0 0 2px var(--study-accent); }
+    .cue-time {
+      color: var(--study-accent);
+      font-size: 0.82rem;
+      margin-bottom: 0.35rem;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .cue-loop-badge { color: var(--study-word); }
+    .cue-line { font-size: 1rem; line-height: 1.6; color: var(--study-text); }
+    .cue-text {
+      font-size: clamp(1.15rem, 1.7vw, 1.45rem);
+      line-height: 1.55;
+      min-height: calc(1.55em * 2);
+      max-height: calc(1.55em * 2);
+      overflow: auto;
+      padding-right: 0.2rem;
+    }
+    ruby rt { font-size: 0.5em; color: #ffb27f; transition: opacity 0.12s; }
+    body.hide-furigana ruby rt { opacity: 0; }
+    .word-active {
+      background: linear-gradient(180deg, transparent 38%, var(--study-word) 38%, var(--study-word) 92%, transparent 92%);
+      border-radius: 0.25rem;
+      padding: 0 0.06em;
+    }
+    .player-note { color: var(--study-muted); }
+    .fallback { height: 100%; display: grid; place-items: center; padding: 1.25rem; color: #f5ede7; text-align: center; }
+    @media (max-width: 960px) {
+      html, body { overflow: auto; }
+      main.container-fluid { height: auto; overflow: visible; }
+      .layout { grid-template-columns: 1fr; height: auto; }
+      .player-shell { aspect-ratio: 16 / 9; flex: none; }
+      .cue-list { max-height: 45vh; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container-fluid">
+    <div class="layout">
+      <article class="video-panel">
+        <header>
+          <div class="title-row">
+            <h1><span id="page-title"></span><a id="source-link" class="title-link" href="#" target="_blank" rel="noreferrer" style="display:none" title="在 YouTube 上打开原视频，快捷键 Alt+O" accesskey="o">YouTube ↗</a></h1>
+          </div>
+          <p id="labels" class="player-note meta-line"></p>
+        </header>
+        <div class="player-shell" id="player-shell"></div>
+        <div class="toolbar" id="toolbar">
+          <button type="button" data-act="prev" title="上一句 (←)">⏮ 上一句</button>
+          <button type="button" data-act="play" title="播放 / 暂停 (Space)">⏯ 播放</button>
+          <button type="button" data-act="next" title="下一句 (→)">下一句 ⏭</button>
+          <button type="button" data-act="replay" title="重复本句 (R)">↺ 重复</button>
+          <button type="button" data-act="loop" title="循环本句 (L)">🔁 循环</button>
+          <button type="button" data-act="autopause" title="每句结束自动暂停 (P)">⏸ 逐句</button>
+          <button type="button" data-act="furigana" title="显示 / 隐藏假名 (F)">あ 假名</button>
+          <span class="spacer"></span>
+          <span class="speed-group" id="speed-group">
+            <small>速度</small>
+            <button type="button" data-act="speed" data-rate="0.5">0.5×</button>
+            <button type="button" data-act="speed" data-rate="0.75">0.75×</button>
+            <button type="button" data-act="speed" data-rate="1">1×</button>
+            <button type="button" data-act="speed" data-rate="1.25">1.25×</button>
+            <button type="button" data-act="speed" data-rate="1.5">1.5×</button>
+          </span>
+        </div>
+        <section class="now-playing">
+          <small>当前句</small>
+          <div id="current-time" class="player-note">00:00:00 → 00:00:00</div>
+          <div id="current-cue" class="cue-text">点击右侧任意字幕，从该句开始播放。</div>
+        </section>
+      </article>
+      <article class="sidebar">
+        <header>
+          <h2>字幕目录</h2>
+          <p class="player-note">点击任意句从该处播放；当前句自动滚动居中。</p>
+          <details class="shortcuts">
+            <summary>键盘快捷键</summary>
+            <p>
+              <kbd>Space</kbd> 播放/暂停 ·
+              <kbd>←</kbd>/<kbd>→</kbd> 上/下一句 ·
+              <kbd>R</kbd> 重复本句 ·
+              <kbd>L</kbd> 循环 ·
+              <kbd>P</kbd> 逐句暂停 ·
+              <kbd>F</kbd> 假名 ·
+              <kbd>-</kbd>/<kbd>=</kbd> 调速
+            </p>
+          </details>
+        </header>
+        <div class="cue-list" id="cue-list">
+          <p>字幕の読み込みを待っています…</p>
+        </div>
+      </article>
+    </div>
+  </main>
+  <script>
+    const CONFIG = __CONFIG_JSON__;
+    const { pageTitle, localVideoSrc, videoLabel, subtitleLabel, sourceUrl, youtubeId, cues } = CONFIG;
+
+    const playerShell = document.getElementById('player-shell');
+    const cueList = document.getElementById('cue-list');
+    const currentCue = document.getElementById('current-cue');
+    const currentTimeLabel = document.getElementById('current-time');
+    const titleEl = document.getElementById('page-title');
+    const labelsEl = document.getElementById('labels');
+    const sourceLinkEl = document.getElementById('source-link');
+    const toolbar = document.getElementById('toolbar');
+    const speedGroup = document.getElementById('speed-group');
+
+    titleEl.textContent = pageTitle;
+    labelsEl.textContent = `视频: ${videoLabel} | 字幕: ${subtitleLabel}`;
+    if (sourceUrl) {
+      sourceLinkEl.href = sourceUrl;
+      sourceLinkEl.style.display = 'inline';
+    }
+
+    let cueButtons = [];
+    let cueLines = [];
+    let activeCueIndex = -1;
+    let selectedCueIndex = -1;
+    let loopEnabled = false;
+    let autoPauseEnabled = false;
+    let autoPausedCueIndex = -1;
+    let playbackRate = 1;
+    let ytPlayer = null;
+    let localVideo = null;
+    let pollTimer = null;
+    let playerReady = false;
+    let pendingSeek = null;
+
+    function formatTime(seconds) {
+      const total = Math.max(0, Math.floor(seconds));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      return [h, m, s].map((value, index) => index === 0 ? String(value) : String(value).padStart(2, '0')).join(':');
+    }
+
+    function sanitizeCueMarkup(text, joinLines) {
+      const normalized = text
+        .replace(/<(\d{2}:\d{2}(?::\d{2})?\.\d{3})>/g, '')
+        .replace(/<c(?:\.[^>]+)?>/g, '')
+        .replace(/<\/c>/g, '');
+      if (joinLines) {
+        return normalized.replace(/\s*\n\s*/g, ' ').replace(/ {2,}/g, ' ').trim();
+      }
+      return normalized.replace(/\n/g, '<br>');
+    }
+
+    const cueHtml = (text) => sanitizeCueMarkup(text, false);
+    const currentCueHtml = (text) => sanitizeCueMarkup(text, true);
+
+    function plainText(text) {
+      return text.replace(/<rt>.*?<\/rt>/g, '').replace(/<[^>]+>/g, '').replace(/\n/g, ' ').trim();
+    }
+
+    function timestampToSeconds(timestamp) {
+      const parts = timestamp.split(':').map(Number);
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      return parts[0] || 0;
+    }
+
+    function parseTimedSegments(text) {
+      const raw = text || '';
+      const regex = /<(\d{2}:\d{2}(?::\d{2})?\.\d{3})>/g;
+      const parts = [];
+      let currentTime = null;
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(raw)) !== null) {
+        const chunk = raw.slice(lastIndex, match.index);
+        if (chunk) parts.push({ startTime: currentTime, text: chunk });
+        currentTime = timestampToSeconds(match[1]);
+        lastIndex = regex.lastIndex;
+      }
+      const tail = raw.slice(lastIndex);
+      if (tail) parts.push({ startTime: currentTime, text: tail });
+      return parts.filter(part => plainText(part.text));
+    }
+
+    function renderTimedText(text, currentSeconds, joinLines) {
+      const segments = parseTimedSegments(text);
+      if (!segments.length) return joinLines ? currentCueHtml(text) : cueHtml(text);
+      let activeIndex = -1;
+      for (let index = 0; index < segments.length; index += 1) {
+        const segment = segments[index];
+        const next = segments[index + 1];
+        const start = segment.startTime ?? -1;
+        const end = next && next.startTime !== null ? next.startTime : Number.POSITIVE_INFINITY;
+        if (start >= 0 && currentSeconds >= start && currentSeconds < end) {
+          activeIndex = index;
+          break;
+        }
+      }
+      return segments.map((segment, index) => {
+        const html = joinLines ? currentCueHtml(segment.text) : cueHtml(segment.text);
+        return index === activeIndex ? `<span class="word-active">${html}</span>` : html;
+      }).join('');
+    }
+
+    // ---- unified media controls (local <video> or YouTube iframe) ----
+    function getCurrentTime() {
+      if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') return ytPlayer.getCurrentTime();
+      if (localVideo) return localVideo.currentTime;
+      return 0;
+    }
+    function isPlaying() {
+      if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') return ytPlayer.getPlayerState() === 1;
+      if (localVideo) return !localVideo.paused;
+      return false;
+    }
+    function playMedia() {
+      if (ytPlayer && typeof ytPlayer.playVideo === 'function') { ytPlayer.playVideo(); return; }
+      if (localVideo) localVideo.play().catch(() => {});
+    }
+    function pauseMedia() {
+      if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') { ytPlayer.pauseVideo(); return; }
+      if (localVideo) localVideo.pause();
+    }
+    function togglePlay() { isPlaying() ? pauseMedia() : playMedia(); }
+    function setRate(rate) {
+      playbackRate = rate;
+      if (ytPlayer && typeof ytPlayer.setPlaybackRate === 'function') ytPlayer.setPlaybackRate(rate);
+      if (localVideo) localVideo.playbackRate = rate;
+      for (const button of speedGroup.querySelectorAll('button')) {
+        button.classList.toggle('on', Number(button.dataset.rate) === rate);
+      }
+    }
+    function seekYouTube(seconds) {
+      pendingSeek = seconds;
+      if (!ytPlayer || !playerReady) return;
+      ytPlayer.seekTo(seconds, true);
+      ytPlayer.playVideo();
+    }
+    function seekTo(seconds) {
+      if (ytPlayer && typeof ytPlayer.seekTo === 'function') { seekYouTube(seconds); return; }
+      if (localVideo) {
+        localVideo.currentTime = seconds;
+        localVideo.play().catch(() => {});
+      }
+    }
+
+    function setCueLine(index, html) {
+      if (!cueLines[index] || cueLines[index].dataset.rendered === html) return;
+      cueLines[index].innerHTML = html;
+      cueLines[index].dataset.rendered = html;
+    }
+    function resetCueLine(index) {
+      if (index < 0 || !cueLines[index]) return;
+      setCueLine(index, cueHtml(cues[index].text));
+    }
+
+    function updateLoopBadges() {
+      cueButtons.forEach((button, index) => {
+        button.classList.toggle('loop-cue', loopEnabled && index === selectedCueIndex);
+      });
+    }
+
+    function updateCurrentCueByTime() {
+      const currentTime = getCurrentTime();
+      const cueIndex = cues.findIndex(cue => currentTime >= cue.start && currentTime < cue.end);
+      if (cueIndex === -1) {
+        resetCueLine(activeCueIndex);
+        activeCueIndex = -1;
+        return;
+      }
+      const cue = cues[cueIndex];
+      const activeHtml = renderTimedText(cue.text, currentTime, true);
+      currentTimeLabel.textContent = `${formatTime(cue.start)} → ${formatTime(cue.end)}`;
+      currentCue.innerHTML = activeHtml;
+      if (activeCueIndex !== cueIndex) {
+        resetCueLine(activeCueIndex);
+        activeCueIndex = cueIndex;
+        if (!loopEnabled) selectedCueIndex = cueIndex;
+        for (const [index, button] of cueButtons.entries()) {
+          button.classList.toggle('active', index === cueIndex);
+        }
+        cueButtons[cueIndex]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        updateLoopBadges();
+      }
+      setCueLine(cueIndex, activeHtml);
+    }
+
+    function enforcePlaybackAids() {
+      if (!cues.length) return;
+      const t = getCurrentTime();
+      if (loopEnabled && selectedCueIndex >= 0) {
+        const cue = cues[selectedCueIndex];
+        if (t >= cue.end - 0.04 || t < cue.start - 0.3) seekTo(cue.start + 0.001);
+        return;
+      }
+      if (autoPauseEnabled && activeCueIndex >= 0 && autoPausedCueIndex !== activeCueIndex) {
+        if (t >= cues[activeCueIndex].end - 0.05) {
+          pauseMedia();
+          autoPausedCueIndex = activeCueIndex;
+        }
+      }
+    }
+
+    function tick() {
+      updateCurrentCueByTime();
+      enforcePlaybackAids();
+    }
+    function startTicking() {
+      if (!pollTimer) pollTimer = window.setInterval(tick, 100);
+    }
+
+    function selectCue(index, { seek = true } = {}) {
+      if (index < 0 || index >= cues.length) return;
+      selectedCueIndex = index;
+      autoPausedCueIndex = -1;
+      const cue = cues[index];
+      currentTimeLabel.textContent = `${formatTime(cue.start)} → ${formatTime(cue.end)}`;
+      currentCue.innerHTML = renderTimedText(cue.text, cue.start + 0.001, true);
+      if (seek) seekTo(Math.max(0, cue.start + 0.001));
+      updateLoopBadges();
+    }
+
+    function step(delta) {
+      const base = selectedCueIndex >= 0 ? selectedCueIndex : activeCueIndex;
+      selectCue(Math.min(cues.length - 1, Math.max(0, base + delta)));
+    }
+    function replayCurrent() {
+      const index = selectedCueIndex >= 0 ? selectedCueIndex : (activeCueIndex >= 0 ? activeCueIndex : 0);
+      selectCue(index);
+    }
+    function toggleLoop() {
+      loopEnabled = !loopEnabled;
+      if (loopEnabled && selectedCueIndex < 0) selectedCueIndex = activeCueIndex >= 0 ? activeCueIndex : 0;
+      toolbar.querySelector('[data-act="loop"]').classList.toggle('on', loopEnabled);
+      updateLoopBadges();
+    }
+    function toggleAutoPause() {
+      autoPauseEnabled = !autoPauseEnabled;
+      autoPausedCueIndex = -1;
+      toolbar.querySelector('[data-act="autopause"]').classList.toggle('on', autoPauseEnabled);
+    }
+    function toggleFurigana() {
+      const hidden = document.body.classList.toggle('hide-furigana');
+      toolbar.querySelector('[data-act="furigana"]').classList.toggle('on', hidden);
+    }
+    function cycleSpeed(delta) {
+      const rates = [0.5, 0.75, 1, 1.25, 1.5];
+      const index = rates.indexOf(playbackRate);
+      const next = Math.min(rates.length - 1, Math.max(0, (index < 0 ? 2 : index) + delta));
+      setRate(rates[next]);
+    }
+
+    toolbar.addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      switch (button.dataset.act) {
+        case 'prev': step(-1); break;
+        case 'next': step(1); break;
+        case 'play': togglePlay(); break;
+        case 'replay': replayCurrent(); break;
+        case 'loop': toggleLoop(); break;
+        case 'autopause': toggleAutoPause(); break;
+        case 'furigana': toggleFurigana(); break;
+        case 'speed': setRate(Number(button.dataset.rate)); break;
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.target.matches('input, textarea, [contenteditable="true"]')) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      switch (event.code) {
+        case 'Space': event.preventDefault(); togglePlay(); break;
+        case 'ArrowLeft': event.preventDefault(); step(-1); break;
+        case 'ArrowRight': event.preventDefault(); step(1); break;
+        case 'KeyR': replayCurrent(); break;
+        case 'KeyL': toggleLoop(); break;
+        case 'KeyP': toggleAutoPause(); break;
+        case 'KeyF': toggleFurigana(); break;
+        case 'Minus': cycleSpeed(-1); break;
+        case 'Equal': cycleSpeed(1); break;
+      }
+    });
+
+    function renderCueList() {
+      if (!cues.length) {
+        cueList.innerHTML = '<p>没有读取到字幕。</p>';
+        return;
+      }
+      cueList.innerHTML = '';
+      cueButtons = [];
+      cueLines = [];
+      cues.forEach((cue, index) => {
+        const button = document.createElement('button');
+        const time = document.createElement('div');
+        const line = document.createElement('div');
+        button.type = 'button';
+        button.className = 'cue-button';
+        time.className = 'cue-time';
+        time.innerHTML = `<span>${formatTime(cue.start)} → ${formatTime(cue.end)}</span><span class="cue-loop-badge">🔁</span>`;
+        line.className = 'cue-line';
+        line.innerHTML = cueHtml(cue.text);
+        line.dataset.rendered = line.innerHTML;
+        button.appendChild(time);
+        button.appendChild(line);
+        button.title = plainText(cue.text);
+        button.addEventListener('click', () => selectCue(index));
+        cueList.appendChild(button);
+        cueButtons.push(button);
+        cueLines.push(line);
+      });
+    }
+
+    function mountLocalVideo() {
+      playerShell.innerHTML = `<video id="player-video" controls preload="metadata" src="${localVideoSrc}"></video>`;
+      localVideo = document.getElementById('player-video');
+      localVideo.addEventListener('loadedmetadata', () => { setRate(playbackRate); tick(); });
+      localVideo.addEventListener('timeupdate', tick);
+      localVideo.addEventListener('seeked', tick);
+      startTicking();
+    }
+
+    function buildYouTubeEmbedUrl() {
+      const params = new URLSearchParams({ enablejsapi: '1', playsinline: '1', rel: '0' });
+      if (window.location.origin && window.location.origin !== 'null') {
+        params.set('origin', window.location.origin);
+      }
+      return `https://www.youtube.com/embed/${youtubeId}?${params.toString()}`;
+    }
+
+    function mountYouTubePlayer() {
+      playerShell.innerHTML = `<iframe id="yt-player-frame" src="${buildYouTubeEmbedUrl()}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="YouTube player"></iframe>`;
+      const mountApi = () => {
+        ytPlayer = new YT.Player('yt-player-frame', {
+          events: {
+            onReady: () => {
+              playerReady = true;
+              setRate(playbackRate);
+              if (pendingSeek !== null) seekYouTube(pendingSeek);
+              startTicking();
+            },
+            onStateChange: tick,
+          },
+        });
+      };
+      if (window.YT && window.YT.Player) { mountApi(); return; }
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(script);
+      window.onYouTubeIframeAPIReady = mountApi;
+    }
+
+    function mountYouTubeFallback() {
+      playerShell.innerHTML = `
+        <div class="fallback">
+          <div>
+            <p>当前页面是本地 <code>file://</code> 静态文件，YouTube 嵌入在这种场景下通常拿不到有效的 HTTP Referer，容易触发错误 153。</p>
+            <p><a href="${sourceUrl || '#'}" target="_blank" rel="noreferrer">在 YouTube 上观看此视频</a></p>
+          </div>
+        </div>
+      `;
+    }
+
+    renderCueList();
+    setRate(1);
+    const canUseYouTubeEmbed = Boolean(youtubeId) && window.location.protocol !== 'file:';
+    if (localVideoSrc) {
+      mountLocalVideo();
+    } else if (canUseYouTubeEmbed) {
+      mountYouTubePlayer();
+    } else if (youtubeId) {
+      mountYouTubeFallback();
+    } else {
+      playerShell.innerHTML = '<div class="fallback"><p>没有可播放的视频文件，也没有可用的 YouTube 链接。</p></div>';
+    }
+  </script>
+</body>
+</html>

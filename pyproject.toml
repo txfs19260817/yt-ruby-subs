@@ -1,0 +1,43 @@
+[project]
+name = "yt-ruby-subs"
+version = "0.1.0"
+description = "Download subtitles with yt-dlp and generate ruby WebVTT via Codex or Claude Code"
+readme = "README.md"
+authors = [
+    { name = "txfs19260817", email = "duola865@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+yt-ruby-subs = "yt_ruby_subs:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yt_ruby_subs"]
+include = [
+    "src/yt_ruby_subs/player_template.html",
+    "defaults.json",
+]
+
+[dependency-groups]
+dev = [
+    "coverage>=7.14.1",
+    "mutmut>=3.6.0",
+    "pytest>=9.1.0",
+    "pytest-cov>=7.1.0",
+    "pyupgrade>=3.21.2",
+    "ruff>=0.15.17",
+]
+
+[tool.pyupgrade]
+target-version = "py313"
+
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["F", "UP"]

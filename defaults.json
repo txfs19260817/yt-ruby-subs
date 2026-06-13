@@ -1,0 +1,8 @@
+{
+  "models": {
+    "codex": "gpt-5.5",
+    "claude": "best",
+    "api": ""
+  },
+  "api_base_url": "https://openrouter.ai/api/v1/chat/completions"
+}
