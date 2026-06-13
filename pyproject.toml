@@ -27,7 +27,6 @@ include = [
 [dependency-groups]
 dev = [
     "coverage>=7.14.1",
-    "mutmut>=3.6.0",
     "pytest>=9.1.0",
     "pytest-cov>=7.1.0",
     "pyupgrade>=3.21.2",
@@ -42,3 +41,31 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["F", "UP"]
+
+[tool.coverage.run]
+source = ["src/yt_ruby_subs"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
