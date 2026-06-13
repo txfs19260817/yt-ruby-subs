@@ -11,6 +11,7 @@ from .player import generate_player_page
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_standard_streams()
     try:
         parser = build_parser()
         args = parser.parse_args(argv)
@@ -21,6 +22,12 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("error: interrupted", file=sys.stderr)
         return 130
+
+
+def configure_standard_streams() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def build_parser() -> argparse.ArgumentParser:
