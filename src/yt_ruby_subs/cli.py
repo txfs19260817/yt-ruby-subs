@@ -204,16 +204,11 @@ def handle_generate(args: argparse.Namespace) -> int:
         raise CliError(f"subtitle file not found: {subtitle_file}")
 
     config = load_config(args.config)
-    generation = generate_outputs(
+    generation = generate_from_args(
+        args,
         subtitle_file=subtitle_file,
-        provider=args.provider,
-        model=resolve_model(args.provider, args.model, config),
-        api_base_url=resolve_api_base_url(args.api_base_url, config),
-        output_dir=(args.output_dir.resolve() if args.output_dir else subtitle_file.parent),
-        base_name=args.base_name,
-        codex_bin=args.codex_bin,
-        claude_bin=args.claude_bin,
-        prompt_extra=args.prompt_extra,
+        default_output_dir=subtitle_file.parent,
+        config=config,
     )
     print_generation_summary(generation)
     return 0
@@ -235,9 +230,26 @@ def handle_run(args: argparse.Namespace) -> int:
     if download_result.selected_subtitle is None:
         raise CliError("no subtitle file was downloaded for the requested language")
 
-    output_dir = args.output_dir.resolve() if args.output_dir else download_result.work_dir
-    generation = generate_outputs(
+    generation = generate_from_args(
+        args,
         subtitle_file=download_result.selected_subtitle,
+        default_output_dir=download_result.work_dir,
+        config=config,
+    )
+    print_generation_summary(generation)
+    return 0
+
+
+def generate_from_args(
+    args: argparse.Namespace,
+    *,
+    subtitle_file: Path,
+    default_output_dir: Path,
+    config: dict[str, object],
+) -> GenerationResult:
+    output_dir = args.output_dir.resolve() if args.output_dir else default_output_dir
+    return generate_outputs(
+        subtitle_file=subtitle_file,
         provider=args.provider,
         model=resolve_model(args.provider, args.model, config),
         api_base_url=resolve_api_base_url(args.api_base_url, config),
@@ -247,8 +259,6 @@ def handle_run(args: argparse.Namespace) -> int:
         claude_bin=args.claude_bin,
         prompt_extra=args.prompt_extra,
     )
-    print_generation_summary(generation)
-    return 0
 
 
 def handle_player(args: argparse.Namespace) -> int:
