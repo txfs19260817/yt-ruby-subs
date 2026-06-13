@@ -1,0 +1,4 @@
+interface:
+  display_name: "Subtitle Correction"
+  short_description: "Fix generated ruby subtitle outputs"
+  default_prompt: "Use $subtitle-correction to fix a generated WebVTT subtitle cue and rebuild the local player."
