@@ -11,6 +11,7 @@ dependencies = []
 
 [project.scripts]
 yt-ruby-subs = "yt_ruby_subs:main"
+yt-ruby-subs-clean = "yt_ruby_subs.clean:main"
 
 [build-system]
 requires = ["hatchling"]
