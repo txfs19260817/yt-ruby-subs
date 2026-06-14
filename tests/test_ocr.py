@@ -55,9 +55,13 @@ def test_run_hard_subtitle_ocr_extracts_frames_and_writes_text(
     )
 
     assert result == output
-    assert "昇龍拳" in output.read_text(encoding="utf-8")
+    text = output.read_text(encoding="utf-8")
+    assert "昇龍拳" in text
+    assert "# bottom_ratio: 0.2" in text
+    assert "# crop: iw:ih*0.2:0:ih*0.8" in text
     assert commands[0][0] == "ffmpeg"
     assert any("fps=1/0.5" in part for part in commands[0])
+    assert any("crop=iw:ih*0.2:0:ih*0.8" in part for part in commands[0])
     assert FakePytesseract.pytesseract.tesseract_cmd == "tesseract"
 
 
@@ -130,3 +134,41 @@ def test_paddleocr_vl_rejects_cpu_device() -> None:
 
     with pytest.raises(CliError, match="GPU-only"):
         ocr.validate_ocr_options(options)
+
+
+def test_build_bottom_crop_and_explicit_override() -> None:
+    assert ocr.build_bottom_crop(0.2) == "iw:ih*0.2:0:ih*0.8"
+    assert (
+        ocr.resolve_ocr_crop(ocr.OcrOptions(bottom_ratio=0.25))
+        == "iw:ih*0.25:0:ih*0.75"
+    )
+    assert (
+        ocr.resolve_ocr_crop(ocr.OcrOptions(crop="iw:100:0:ih-100"))
+        == "iw:100:0:ih-100"
+    )
+
+
+def test_build_bottom_crop_rejects_invalid_ratio() -> None:
+    with pytest.raises(CliError, match="ocr-bottom-ratio"):
+        ocr.build_bottom_crop(0)
+
+
+def test_find_nvidia_dll_directories(tmp_path: Path) -> None:
+    dll_dir = tmp_path / "site-packages" / "nvidia" / "cudnn" / "bin"
+    dll_dir.mkdir(parents=True)
+    (dll_dir / "cudnn64_9.dll").write_text("", encoding="utf-8")
+
+    assert ocr.find_nvidia_dll_directories([tmp_path / "site-packages"]) == [
+        dll_dir.resolve()
+    ]
+
+
+def test_prepend_process_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    monkeypatch.setenv("PATH", str(second))
+
+    ocr.prepend_process_path(first)
+    ocr.prepend_process_path(first)
+
+    assert ocr.os.environ["PATH"].split(ocr.os.pathsep) == [str(first), str(second)]

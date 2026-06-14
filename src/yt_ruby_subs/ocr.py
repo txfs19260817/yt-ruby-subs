@@ -1,4 +1,6 @@
+import os
 import re
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -7,10 +9,14 @@ from typing import Any, Protocol
 from .errors import CliError
 from .process_utils import resolve_command, run_subprocess
 
-DEFAULT_OCR_CROP = "iw:ih*0.35:0:ih*0.65"
+DEFAULT_OCR_BOTTOM_RATIO = 0.2
+DEFAULT_OCR_CROP = (
+    f"iw:ih*{DEFAULT_OCR_BOTTOM_RATIO:g}:0:ih*{1 - DEFAULT_OCR_BOTTOM_RATIO:g}"
+)
 DEFAULT_PADDLEOCR_VL_DEVICE = "gpu"
 PADDLEOCR_VL_VERSION = "v1.6"
 SUPPORTED_OCR_ENGINES = ("tesseract", "paddleocr-vl")
+_DLL_DIRECTORY_HANDLES: list[Any] = []
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,7 +24,8 @@ class OcrOptions:
     engine: str = "tesseract"
     language: str = "jpn"
     interval_seconds: float = 1.0
-    crop: str = DEFAULT_OCR_CROP
+    bottom_ratio: float = DEFAULT_OCR_BOTTOM_RATIO
+    crop: str = ""
     ffmpeg_bin: str = "ffmpeg"
     tesseract_bin: str = "tesseract"
     paddleocr_vl_device: str = DEFAULT_PADDLEOCR_VL_DEVICE
@@ -62,6 +69,8 @@ def run_hard_subtitle_ocr(
     validate_ocr_options(options)
     if options.interval_seconds <= 0:
         raise CliError("--ocr-interval must be greater than 0")
+    if not 0 < options.bottom_ratio <= 1:
+        raise CliError("--ocr-bottom-ratio must be greater than 0 and at most 1")
     if not video_file.is_file():
         raise CliError(f"video file not found for OCR: {video_file}")
 
@@ -168,6 +177,7 @@ def create_paddleocr_vl_pipeline(options: OcrOptions) -> Any:
 
 
 def ensure_paddle_gpu_available() -> None:
+    configure_nvidia_dll_path()
     try:
         import paddle  # type: ignore[import-not-found]
     except ImportError as exc:
@@ -190,6 +200,42 @@ def ensure_paddle_gpu_available() -> None:
         )
 
 
+def configure_nvidia_dll_path() -> None:
+    if os.name != "nt":
+        return
+
+    for directory in find_nvidia_dll_directories(
+        [Path(item) for item in sys.path if item]
+    ):
+        prepend_process_path(directory)
+        if hasattr(os, "add_dll_directory"):
+            _DLL_DIRECTORY_HANDLES.append(os.add_dll_directory(str(directory)))
+
+
+def find_nvidia_dll_directories(roots: list[Path]) -> list[Path]:
+    directories: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        nvidia_dir = root / "nvidia"
+        if not nvidia_dir.is_dir():
+            continue
+        for dll_path in sorted(nvidia_dir.rglob("*.dll")):
+            directory = dll_path.parent.resolve()
+            key = str(directory).casefold()
+            if key not in seen:
+                directories.append(directory)
+                seen.add(key)
+    return directories
+
+
+def prepend_process_path(directory: Path) -> None:
+    directory_text = str(directory)
+    current = os.environ.get("PATH", "")
+    existing = {item.casefold() for item in current.split(os.pathsep) if item}
+    if directory_text.casefold() not in existing:
+        os.environ["PATH"] = directory_text + os.pathsep + current
+
+
 def compact_options(values: dict[str, str]) -> dict[str, str]:
     return {key: value for key, value in values.items() if value}
 
@@ -198,8 +244,7 @@ def extract_ocr_frames(
     *, ffmpeg: str, video_file: Path, frame_pattern: Path, options: OcrOptions
 ) -> None:
     filters = [f"fps=1/{options.interval_seconds:g}"]
-    if options.crop:
-        filters.insert(0, f"crop={options.crop}")
+    filters.insert(0, f"crop={resolve_ocr_crop(options)}")
     run_subprocess(
         [
             ffmpeg,
@@ -231,7 +276,8 @@ def write_ocr_reference(
         f"# engine: {options.engine}",
         f"# language: {options.language}",
         f"# interval_seconds: {options.interval_seconds:g}",
-        f"# crop: {options.crop}",
+        f"# bottom_ratio: {options.bottom_ratio:g}",
+        f"# crop: {resolve_ocr_crop(options)}",
         "",
     ]
     previous_text = ""
@@ -253,6 +299,16 @@ def read_markdown_output(output_dir: Path) -> str:
         path.read_text(encoding="utf-8-sig") for path in sorted(output_dir.glob("*.md"))
     ]
     return "\n".join(parts)
+
+
+def resolve_ocr_crop(options: OcrOptions) -> str:
+    return options.crop or build_bottom_crop(options.bottom_ratio)
+
+
+def build_bottom_crop(ratio: float) -> str:
+    if not 0 < ratio <= 1:
+        raise CliError("--ocr-bottom-ratio must be greater than 0 and at most 1")
+    return f"iw:ih*{ratio:g}:0:ih*{1 - ratio:g}"
 
 
 def normalize_ocr_text(text: str) -> str:

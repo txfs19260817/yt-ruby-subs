@@ -97,6 +97,7 @@ uv run yt-ruby-subs player ".\downloads\example\video.webm" ".\downloads\example
 ## OCR 参考文本
 
 如果视频自带日语硬字幕，`run` 可以在下载视频后 OCR 视频下方区域，并把识别文本交给 AI 修正字幕时参考。
+默认裁剪视频下方 1/5。需要调整时用 `--ocr-bottom-ratio`，需要完整 ffmpeg crop 表达式时用 `--ocr-crop`。
 
 Tesseract:
 

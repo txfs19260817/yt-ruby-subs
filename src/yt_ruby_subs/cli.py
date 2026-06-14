@@ -8,6 +8,7 @@ from .errors import CliError
 from .generate import generate_outputs
 from .models import DownloadResult, GenerationResult, PlayerResult
 from .ocr import (
+    DEFAULT_OCR_BOTTOM_RATIO,
     DEFAULT_OCR_CROP,
     DEFAULT_PADDLEOCR_VL_DEVICE,
     OcrOptions,
@@ -203,8 +204,14 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--ocr-crop",
-        default=DEFAULT_OCR_CROP,
-        help="ffmpeg crop expression for the hard-subtitle region. Default: lower 35%% of the frame.",
+        default="",
+        help=f"Explicit ffmpeg crop expression for the hard-subtitle region. Default: {DEFAULT_OCR_CROP}",
+    )
+    parser.add_argument(
+        "--ocr-bottom-ratio",
+        type=float,
+        default=DEFAULT_OCR_BOTTOM_RATIO,
+        help="Bottom video ratio to OCR when --ocr-crop is not set. Default: 0.2",
     )
     parser.add_argument(
         "--ocr-output",
@@ -375,6 +382,7 @@ def maybe_run_ocr(
             engine=args.ocr_engine,
             language=args.ocr_lang,
             interval_seconds=args.ocr_interval,
+            bottom_ratio=args.ocr_bottom_ratio,
             crop=args.ocr_crop,
             ffmpeg_bin=args.ffmpeg_bin,
             tesseract_bin=args.tesseract_bin,
