@@ -59,9 +59,11 @@ def test_run_hard_subtitle_ocr_extracts_frames_and_writes_text(
     assert "昇龍拳" in text
     assert "# bottom_ratio: 0.2" in text
     assert "# crop: iw:ih*0.2:0:ih*0.8" in text
+    assert "# frame_dedupe: true" in text
     assert commands[0][0] == "ffmpeg"
     assert any("fps=1/0.5" in part for part in commands[0])
     assert any("crop=iw:ih*0.2:0:ih*0.8" in part for part in commands[0])
+    assert any("mpdecimate" in part for part in commands[0])
     assert FakePytesseract.pytesseract.tesseract_cmd == "tesseract"
 
 
@@ -146,6 +148,21 @@ def test_build_bottom_crop_and_explicit_override() -> None:
         ocr.resolve_ocr_crop(ocr.OcrOptions(crop="iw:100:0:ih-100"))
         == "iw:100:0:ih-100"
     )
+
+
+def test_build_ocr_video_filters_deduplicates_frames_by_default() -> None:
+    assert ocr.build_ocr_video_filters(ocr.OcrOptions(interval_seconds=2)) == [
+        "crop=iw:ih*0.2:0:ih*0.8",
+        "fps=1/2",
+        "mpdecimate",
+    ]
+
+
+def test_build_ocr_video_filters_can_disable_frame_dedupe() -> None:
+    assert ocr.build_ocr_video_filters(ocr.OcrOptions(frame_dedupe=False)) == [
+        "crop=iw:ih*0.2:0:ih*0.8",
+        "fps=1/1",
+    ]
 
 
 def test_build_bottom_crop_rejects_invalid_ratio() -> None:

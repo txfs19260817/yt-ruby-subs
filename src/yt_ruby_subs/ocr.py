@@ -13,6 +13,7 @@ DEFAULT_OCR_BOTTOM_RATIO = 0.2
 DEFAULT_OCR_CROP = (
     f"iw:ih*{DEFAULT_OCR_BOTTOM_RATIO:g}:0:ih*{1 - DEFAULT_OCR_BOTTOM_RATIO:g}"
 )
+DEFAULT_OCR_FRAME_DEDUPE = True
 DEFAULT_PADDLEOCR_VL_DEVICE = "gpu"
 PADDLEOCR_VL_VERSION = "v1.6"
 SUPPORTED_OCR_ENGINES = ("tesseract", "paddleocr-vl")
@@ -26,6 +27,7 @@ class OcrOptions:
     interval_seconds: float = 1.0
     bottom_ratio: float = DEFAULT_OCR_BOTTOM_RATIO
     crop: str = ""
+    frame_dedupe: bool = DEFAULT_OCR_FRAME_DEDUPE
     ffmpeg_bin: str = "ffmpeg"
     tesseract_bin: str = "tesseract"
     paddleocr_vl_device: str = DEFAULT_PADDLEOCR_VL_DEVICE
@@ -243,8 +245,6 @@ def compact_options(values: dict[str, str]) -> dict[str, str]:
 def extract_ocr_frames(
     *, ffmpeg: str, video_file: Path, frame_pattern: Path, options: OcrOptions
 ) -> None:
-    filters = [f"fps=1/{options.interval_seconds:g}"]
-    filters.insert(0, f"crop={resolve_ocr_crop(options)}")
     run_subprocess(
         [
             ffmpeg,
@@ -255,7 +255,7 @@ def extract_ocr_frames(
             "-i",
             str(video_file),
             "-vf",
-            ",".join(filters),
+            ",".join(build_ocr_video_filters(options)),
             str(frame_pattern),
         ],
         cwd=video_file.parent,
@@ -278,6 +278,7 @@ def write_ocr_reference(
         f"# interval_seconds: {options.interval_seconds:g}",
         f"# bottom_ratio: {options.bottom_ratio:g}",
         f"# crop: {resolve_ocr_crop(options)}",
+        f"# frame_dedupe: {str(options.frame_dedupe).lower()}",
         "",
     ]
     previous_text = ""
@@ -303,6 +304,16 @@ def read_markdown_output(output_dir: Path) -> str:
 
 def resolve_ocr_crop(options: OcrOptions) -> str:
     return options.crop or build_bottom_crop(options.bottom_ratio)
+
+
+def build_ocr_video_filters(options: OcrOptions) -> list[str]:
+    filters = [
+        f"crop={resolve_ocr_crop(options)}",
+        f"fps=1/{options.interval_seconds:g}",
+    ]
+    if options.frame_dedupe:
+        filters.append("mpdecimate")
+    return filters
 
 
 def build_bottom_crop(ratio: float) -> str:

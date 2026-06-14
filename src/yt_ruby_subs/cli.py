@@ -8,6 +8,7 @@ from .errors import CliError
 from .generate import generate_outputs
 from .models import DownloadResult, GenerationResult, PlayerResult
 from .ocr import (
+    DEFAULT_OCR_FRAME_DEDUPE,
     DEFAULT_OCR_BOTTOM_RATIO,
     DEFAULT_OCR_CROP,
     DEFAULT_PADDLEOCR_VL_DEVICE,
@@ -214,6 +215,13 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
         help="Bottom video ratio to OCR when --ocr-crop is not set. Default: 0.2",
     )
     parser.add_argument(
+        "--no-ocr-frame-dedupe",
+        dest="ocr_frame_dedupe",
+        action="store_false",
+        default=DEFAULT_OCR_FRAME_DEDUPE,
+        help="Disable ffmpeg mpdecimate frame deduplication before OCR.",
+    )
+    parser.add_argument(
         "--ocr-output",
         type=Path,
         default=None,
@@ -384,6 +392,7 @@ def maybe_run_ocr(
             interval_seconds=args.ocr_interval,
             bottom_ratio=args.ocr_bottom_ratio,
             crop=args.ocr_crop,
+            frame_dedupe=args.ocr_frame_dedupe,
             ffmpeg_bin=args.ffmpeg_bin,
             tesseract_bin=args.tesseract_bin,
             paddleocr_vl_device=args.paddleocr_vl_device,

@@ -207,6 +207,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         assert options.engine == "paddleocr-vl"
         assert options.bottom_ratio == 0.2
         assert options.crop == ""
+        assert options.frame_dedupe is True
         assert options.paddleocr_vl_device == "gpu"
         assert options.paddleocr_vl_backend == "vllm-server"
         output_file.write_text("硬字幕OCR\n", encoding="utf-8")
@@ -240,6 +241,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         ocr_interval=1.0,
         ocr_bottom_ratio=0.2,
         ocr_crop="",
+        ocr_frame_dedupe=True,
         ocr_output=None,
         ffmpeg_bin="ffmpeg",
         tesseract_bin="tesseract",

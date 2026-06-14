@@ -98,6 +98,7 @@ uv run yt-ruby-subs player ".\downloads\example\video.webm" ".\downloads\example
 
 If a video has hard Japanese subtitles, `run` can OCR the lower video area after download and pass the text to the AI correction step.
 By default it crops the bottom fifth of the video. Use `--ocr-bottom-ratio` for a different bottom region, or `--ocr-crop` for a full ffmpeg crop expression.
+OCR frame extraction also runs light ffmpeg frame deduplication by default. Use `--no-ocr-frame-dedupe` if it drops frames you want to inspect.
 
 Tesseract:
 
