@@ -11,7 +11,7 @@ from typing import Any, Protocol
 from .errors import CliError
 from .process_utils import resolve_command, run_subprocess
 
-DEFAULT_OCR_BOTTOM_RATIO = 0.17
+DEFAULT_OCR_BOTTOM_RATIO = 0.15
 DEFAULT_OCR_CROP = (
     f"iw:ih*{DEFAULT_OCR_BOTTOM_RATIO:g}:0:ih*{1 - DEFAULT_OCR_BOTTOM_RATIO:g}"
 )

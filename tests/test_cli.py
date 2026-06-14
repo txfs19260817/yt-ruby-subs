@@ -242,7 +242,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         ocr_engine="paddleocr-vl",
         ocr_lang="jpn",
         ocr_interval=1.0,
-        ocr_bottom_ratio=0.17,
+        ocr_bottom_ratio=0.15,
         ocr_crop="",
         ocr_frame_dedupe=True,
         ocr_output=None,
