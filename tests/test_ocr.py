@@ -191,7 +191,7 @@ def test_run_hard_subtitle_ocr_supports_ppocrv6(
         output_file=output,
         options=ocr.OcrOptions(
             engine="ppocrv6",
-            ppocrv6_model="tiny",
+            ppocrv6_model="small",
             ppocrv6_device="gpu:0",
         ),
     )
@@ -199,10 +199,11 @@ def test_run_hard_subtitle_ocr_supports_ppocrv6(
     text = output.read_text(encoding="utf-8")
     assert result == output
     assert "# engine: ppocrv6" in text
-    assert "# ppocrv6_model: tiny" in text
+    assert "# ppocrv6_model: small" in text
     assert "# ppocrv6_device: gpu:0" in text
+    assert "# ppocrv6_lang: japan" in text
     assert "昇龍拳\n波動拳" in text
-    assert created_options[0].ppocrv6_model == "tiny"
+    assert created_options[0].ppocrv6_model == "small"
     assert created_options[0].ppocrv6_device == "gpu:0"
 
 
@@ -311,6 +312,13 @@ def test_ppocrv6_rejects_unknown_model_size() -> None:
         ocr.validate_ocr_options(options)
 
 
+def test_ppocrv6_rejects_tiny_for_japanese() -> None:
+    options = ocr.OcrOptions(engine="ppocrv6", ppocrv6_model="tiny", language="jpn")
+
+    with pytest.raises(CliError, match="does not support Japanese"):
+        ocr.validate_ocr_options(options)
+
+
 def test_create_ppocrv6_pipeline_uses_selected_model_and_gpu(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -330,11 +338,13 @@ def test_create_ppocrv6_pipeline_uses_selected_model_and_gpu(
             engine="ppocrv6",
             ppocrv6_model="small",
             ppocrv6_device="gpu:1",
+            language="jpn",
         )
     )
 
     assert isinstance(pipeline, FakePaddleOCR)
     assert captured["ocr_version"] == "PP-OCRv6"
+    assert captured["lang"] == "japan"
     assert captured["device"] == "gpu:1"
     assert captured["text_detection_model_name"] == "PP-OCRv6_small_det"
     assert captured["text_recognition_model_name"] == "PP-OCRv6_small_rec"

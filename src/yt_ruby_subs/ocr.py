@@ -19,6 +19,7 @@ from .constants import (
     DEFAULT_PPOCRV6_MODEL,
     OCR_TEMP_DIR_MODES,
     PADDLEOCR_VL_VERSION,
+    PPOCRV6_LANGUAGE_ALIASES,
     PPOCRV6_MODEL_NAMES,
     PPOCRV6_MODELS,
     SUPPORTED_OCR_ENGINES,
@@ -168,6 +169,14 @@ def validate_ocr_options(options: OcrOptions) -> None:
         raise CliError(
             f"unsupported --ppocrv6-model: {options.ppocrv6_model}; choose one of: {supported}"
         )
+    if (
+        options.engine == "ppocrv6"
+        and options.ppocrv6_model == "tiny"
+        and resolve_ppocrv6_language(options.language) == "japan"
+    ):
+        raise CliError(
+            "PP-OCRv6 tiny does not support Japanese; use --ppocrv6-model small or medium"
+        )
     if options.temp_dir not in OCR_TEMP_DIR_MODES:
         supported = ", ".join(OCR_TEMP_DIR_MODES)
         raise CliError(
@@ -291,6 +300,7 @@ def create_ppocrv6_pipeline(options: OcrOptions) -> Any:
     # https://www.paddleocr.ai/main/version3.x/pipeline_usage/OCR.html
     return PaddleOCR(
         ocr_version="PP-OCRv6",
+        lang=resolve_ppocrv6_language(options.language),
         device=options.ppocrv6_device,
         text_detection_model_name=model_names["detection"],
         text_recognition_model_name=model_names["recognition"],
@@ -432,8 +442,14 @@ def build_ocr_engine_header(options: OcrOptions) -> list[str]:
         return [
             f"# ppocrv6_model: {options.ppocrv6_model}",
             f"# ppocrv6_device: {options.ppocrv6_device}",
+            f"# ppocrv6_lang: {resolve_ppocrv6_language(options.language)}",
         ]
     return []
+
+
+def resolve_ppocrv6_language(language: str) -> str:
+    normalized = language.strip().lower()
+    return PPOCRV6_LANGUAGE_ALIASES.get(normalized, normalized)
 
 
 def extract_ppocrv6_texts(result: Any) -> list[str]:

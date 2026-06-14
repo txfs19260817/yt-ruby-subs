@@ -20,9 +20,14 @@ DEFAULT_OCR_INTERVAL_SECONDS = 1.5
 DEFAULT_OCR_TEMP_DIR = "system"
 DEFAULT_PADDLEOCR_VL_DEVICE = "gpu"
 DEFAULT_PPOCRV6_DEVICE = "gpu:0"
-DEFAULT_PPOCRV6_MODEL = "tiny"
+DEFAULT_PPOCRV6_MODEL = "small"
 OCR_TEMP_DIR_MODES = ("system", "output")
 PADDLEOCR_VL_VERSION = "v1.6"
+PPOCRV6_LANGUAGE_ALIASES = {
+    "ja": "japan",
+    "jp": "japan",
+    "jpn": "japan",
+}
 PPOCRV6_MODEL_NAMES: dict[str, dict[str, str]] = {
     "tiny": {
         "detection": "PP-OCRv6_tiny_det",

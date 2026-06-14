@@ -275,7 +275,7 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
         "--ppocrv6-model",
         choices=PPOCRV6_MODELS,
         default=DEFAULT_PPOCRV6_MODEL,
-        help="PP-OCRv6 model size for --ocr-engine ppocrv6. Default: tiny",
+        help="PP-OCRv6 model size for --ocr-engine ppocrv6. Default: small",
     )
     parser.add_argument(
         "--ppocrv6-device",

@@ -123,7 +123,7 @@ uv sync --extra ppocrv6
 uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine ppocrv6
 ```
 
-本项目约定 PP-OCRv6 只走 GPU，默认使用 `gpu:0` 上的 tiny 模型。需要更高精度时可以传 `--ppocrv6-model small` 或 `--ppocrv6-model medium`。
+本项目约定 PP-OCRv6 只走 GPU。日语硬字幕默认使用 `gpu:0` 上的 small 模型。Paddle 的 PP-OCRv6 文档说明 tiny 档不包含日语，所以当 `--ocr-lang` 解析为日语时，`--ppocrv6-model tiny` 会直接拒绝。
 
 PaddleOCR-VL 1.6:
 

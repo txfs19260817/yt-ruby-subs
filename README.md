@@ -123,7 +123,7 @@ uv sync --extra ppocrv6
 uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine ppocrv6
 ```
 
-PP-OCRv6 is GPU-only in this project and defaults to the tiny model on `gpu:0`. Use `--ppocrv6-model small` or `--ppocrv6-model medium` when you want to trade speed for accuracy.
+PP-OCRv6 is GPU-only in this project and defaults to the small model on `gpu:0` for Japanese hard subtitles. Paddle's PP-OCRv6 docs say the tiny tier excludes Japanese, so `--ppocrv6-model tiny` is rejected when `--ocr-lang` resolves to Japanese.
 
 PaddleOCR-VL 1.6:
 
