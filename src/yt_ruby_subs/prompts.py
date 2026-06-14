@@ -2,8 +2,14 @@ import textwrap
 from pathlib import Path
 
 
-def build_corrected_prompt(subtitle_file: Path, prompt_extra: str) -> str:
+def build_corrected_prompt(
+    subtitle_file: Path,
+    prompt_extra: str,
+    *,
+    ocr_reference_file: Path | None = None,
+) -> str:
     content = subtitle_file.read_text(encoding="utf-8-sig")
+    ocr_reference = read_ocr_reference(ocr_reference_file)
     instructions = textwrap.dedent(
         """
         You prepare Japanese subtitles for shadowing (read-aloud / follow-along)
@@ -27,6 +33,9 @@ def build_corrected_prompt(subtitle_file: Path, prompt_extra: str) -> str:
           - Preserve inline word-level timestamp tags like <00:00:12.345> when the
             source has them and they still sit between the right words; they drive
             per-word highlighting in the player. Drop only the ones you break.
+          - Use OCR as a correction reference when an OCR block is provided. OCR
+            may contain hard subtitles from the video image; prefer it over ASR
+            for misheard words, but ignore obvious OCR noise.
           - Do NOT add ruby/furigana in this output.
 
         Rules:
@@ -41,13 +50,16 @@ def build_corrected_prompt(subtitle_file: Path, prompt_extra: str) -> str:
     if prompt_extra:
         instructions += f"\n\nAdditional instruction:\n{prompt_extra.strip()}"
 
-    return (
+    prompt = (
         f"{instructions}\n\n"
         f"Source subtitle filename: {subtitle_file.name}\n\n"
         "<subtitle_file>\n"
         f"{content}\n"
         "</subtitle_file>\n"
     )
+    if ocr_reference:
+        prompt += f"\n<ocr_reference>\n{ocr_reference}\n</ocr_reference>\n"
+    return prompt
 
 
 def build_ruby_prompt(corrected_vtt: str) -> str:
@@ -89,3 +101,9 @@ def build_summary_prompt(corrected_vtt: str) -> str:
 
 def build_prompt(subtitle_file: Path, prompt_extra: str) -> str:
     return build_corrected_prompt(subtitle_file, prompt_extra)
+
+
+def read_ocr_reference(path: Path | None) -> str:
+    if path is None:
+        return ""
+    return path.read_text(encoding="utf-8-sig").strip()

@@ -94,12 +94,45 @@ Build a player from an existing video and subtitle pair:
 uv run yt-ruby-subs player ".\downloads\example\video.webm" ".\downloads\example\video.ja.ruby.vtt"
 ```
 
+## OCR reference
+
+If a video has hard Japanese subtitles, `run` can OCR the lower video area after download and pass the text to the AI correction step.
+
+Tesseract:
+
+```bash
+uv sync --extra ocr
+uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr
+```
+
+This path also needs `ffmpeg`, Tesseract, and Japanese Tesseract language data.
+
+PaddleOCR-VL 1.6:
+
+```bash
+uv sync --extra paddleocr-vl
+uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine paddleocr-vl
+```
+
+For a VLM service backend:
+
+```bash
+uv run yt-ruby-subs run "https://example.com/video" --ocr --ocr-engine paddleocr-vl --paddleocr-vl-backend vllm-server --paddleocr-vl-server-url "http://localhost:8000/v1" --paddleocr-vl-api-model-name "PaddlePaddle/PaddleOCR-VL-1.6"
+```
+
+To reuse an existing OCR file:
+
+```bash
+uv run yt-ruby-subs generate ".\downloads\example\video.ja.vtt" --ocr-reference ".\downloads\example\video.hard-sub-ocr.txt"
+```
+
 ## Output files
 
 `run` writes files under `downloads/<title timestamp>/` by default. `generate` writes next to the input subtitle unless you pass `--output-dir`.
 
 Typical outputs:
 
+- `<video>.hard-sub-ocr.txt`: optional hard-subtitle OCR reference
 - `<name>.ruby.corrected.vtt`: corrected transcript
 - `<name>.ruby.vtt`: ruby subtitle file
 - `<name>.ruby.summary.txt`: short clip summary

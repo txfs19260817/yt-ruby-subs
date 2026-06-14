@@ -7,6 +7,7 @@ from .download import download_with_yt_dlp
 from .errors import CliError
 from .generate import generate_outputs
 from .models import DownloadResult, GenerationResult, PlayerResult
+from .ocr import DEFAULT_OCR_CROP, OcrOptions, run_hard_subtitle_ocr
 from .player import generate_player_page
 
 
@@ -60,6 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_download_args(run_parser)
     add_generate_args(run_parser, include_input=False)
+    add_ocr_args(run_parser)
     run_parser.set_defaults(func=handle_run)
 
     player_parser = subparsers.add_parser(
@@ -107,7 +109,9 @@ def add_download_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def add_generate_args(parser: argparse.ArgumentParser, *, include_input: bool = True) -> None:
+def add_generate_args(
+    parser: argparse.ArgumentParser, *, include_input: bool = True
+) -> None:
     if include_input:
         parser.add_argument(
             "subtitle_file",
@@ -162,6 +166,81 @@ def add_generate_args(parser: argparse.ArgumentParser, *, include_input: bool = 
         "--prompt-extra",
         default="",
         help="Extra instruction appended to the subtitle conversion prompt.",
+    )
+    parser.add_argument(
+        "--ocr-reference",
+        type=Path,
+        default=None,
+        help="Existing OCR reference text file to include in the correction prompt.",
+    )
+
+
+def add_ocr_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--ocr",
+        action="store_true",
+        help="After video download, OCR the lower video area and pass the text as an AI correction reference.",
+    )
+    parser.add_argument(
+        "--ocr-engine",
+        choices=("tesseract", "paddleocr-vl"),
+        default="tesseract",
+        help="OCR engine for --ocr. Default: tesseract",
+    )
+    parser.add_argument(
+        "--ocr-lang", default="jpn", help="Tesseract language for --ocr. Default: jpn"
+    )
+    parser.add_argument(
+        "--ocr-interval",
+        type=float,
+        default=1.0,
+        help="Seconds between OCR frames. Default: 1.0",
+    )
+    parser.add_argument(
+        "--ocr-crop",
+        default=DEFAULT_OCR_CROP,
+        help="ffmpeg crop expression for the hard-subtitle region. Default: lower 35%% of the frame.",
+    )
+    parser.add_argument(
+        "--ocr-output",
+        type=Path,
+        default=None,
+        help="OCR reference output file. Default: <video-stem>.hard-sub-ocr.txt",
+    )
+    parser.add_argument(
+        "--ffmpeg-bin",
+        default="ffmpeg",
+        help="ffmpeg executable for --ocr. Default: ffmpeg",
+    )
+    parser.add_argument(
+        "--tesseract-bin",
+        default="tesseract",
+        help="Tesseract executable for --ocr. Default: tesseract",
+    )
+    parser.add_argument(
+        "--paddleocr-vl-device",
+        default="",
+        help='PaddleOCR-VL device override, for example "cpu" or "gpu". Default: auto',
+    )
+    parser.add_argument(
+        "--paddleocr-vl-backend",
+        default="",
+        help='PaddleOCR-VL VLM service backend, for example "vllm-server". Default: local pipeline',
+    )
+    parser.add_argument(
+        "--paddleocr-vl-server-url",
+        default="",
+        help="PaddleOCR-VL VLM service URL, for example http://localhost:8000/v1.",
+    )
+    parser.add_argument(
+        "--paddleocr-vl-api-model-name",
+        default="",
+        help="PaddleOCR-VL service model name. Default: PaddleOCR pipeline default",
+    )
+    parser.add_argument(
+        "--paddleocr-vl-api-key",
+        default="",
+        help="PaddleOCR-VL service API key. Default: none",
     )
 
 
@@ -230,11 +309,13 @@ def handle_run(args: argparse.Namespace) -> int:
     if download_result.selected_subtitle is None:
         raise CliError("no subtitle file was downloaded for the requested language")
 
+    ocr_reference_file = maybe_run_ocr(args, download_result)
     generation = generate_from_args(
         args,
         subtitle_file=download_result.selected_subtitle,
         default_output_dir=download_result.work_dir,
         config=config,
+        ocr_reference_file=ocr_reference_file,
     )
     print_generation_summary(generation)
     return 0
@@ -246,8 +327,12 @@ def generate_from_args(
     subtitle_file: Path,
     default_output_dir: Path,
     config: dict[str, object],
+    ocr_reference_file: Path | None = None,
 ) -> GenerationResult:
     output_dir = args.output_dir.resolve() if args.output_dir else default_output_dir
+    resolved_ocr_reference = ocr_reference_file or resolve_ocr_reference(
+        getattr(args, "ocr_reference", None)
+    )
     return generate_outputs(
         subtitle_file=subtitle_file,
         provider=args.provider,
@@ -258,7 +343,54 @@ def generate_from_args(
         codex_bin=args.codex_bin,
         claude_bin=args.claude_bin,
         prompt_extra=args.prompt_extra,
+        ocr_reference_file=resolved_ocr_reference,
     )
+
+
+def maybe_run_ocr(
+    args: argparse.Namespace, download_result: DownloadResult
+) -> Path | None:
+    if not getattr(args, "ocr", False):
+        return resolve_ocr_reference(getattr(args, "ocr_reference", None))
+    if not download_result.video_files:
+        raise CliError(
+            "--ocr requires a downloaded video; remove --no-video or pass --ocr-reference"
+        )
+
+    video_file = download_result.video_files[0]
+    output_file = (
+        args.ocr_output.resolve()
+        if args.ocr_output
+        else video_file.with_suffix(".hard-sub-ocr.txt")
+    )
+    result = run_hard_subtitle_ocr(
+        video_file=video_file,
+        output_file=output_file,
+        options=OcrOptions(
+            engine=args.ocr_engine,
+            language=args.ocr_lang,
+            interval_seconds=args.ocr_interval,
+            crop=args.ocr_crop,
+            ffmpeg_bin=args.ffmpeg_bin,
+            tesseract_bin=args.tesseract_bin,
+            paddleocr_vl_device=args.paddleocr_vl_device,
+            paddleocr_vl_backend=args.paddleocr_vl_backend,
+            paddleocr_vl_server_url=args.paddleocr_vl_server_url,
+            paddleocr_vl_api_model_name=args.paddleocr_vl_api_model_name,
+            paddleocr_vl_api_key=args.paddleocr_vl_api_key,
+        ),
+    )
+    print(f"ocr_reference: {result}")
+    return result
+
+
+def resolve_ocr_reference(path: Path | None) -> Path | None:
+    if path is None:
+        return None
+    resolved = path.resolve()
+    if not resolved.is_file():
+        raise CliError(f"OCR reference file not found: {resolved}")
+    return resolved
 
 
 def handle_player(args: argparse.Namespace) -> int:
@@ -269,7 +401,11 @@ def handle_player(args: argparse.Namespace) -> int:
     if not subtitle_file.is_file():
         raise CliError(f"subtitle file not found: {subtitle_file}")
 
-    html_path = args.output_html.resolve() if args.output_html else subtitle_file.with_suffix(".player.html")
+    html_path = (
+        args.output_html.resolve()
+        if args.output_html
+        else subtitle_file.with_suffix(".player.html")
+    )
     player = generate_player_page(
         video_file=video_file,
         subtitle_file=subtitle_file,

@@ -10,7 +10,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .constants import CORRECTED_OUTPUT_SCHEMA, RUBY_OUTPUT_SCHEMA, SUMMARY_OUTPUT_SCHEMA
+from .constants import (
+    CORRECTED_OUTPUT_SCHEMA,
+    RUBY_OUTPUT_SCHEMA,
+    SUMMARY_OUTPUT_SCHEMA,
+)
 from .errors import CliError
 from .models import GenerationResult
 from .player import (
@@ -19,7 +23,12 @@ from .player import (
     generate_player_page,
     parse_vtt_cues_from_text,
 )
-from .process_utils import normalize_newlines, parse_json_file, resolve_command, run_subprocess
+from .process_utils import (
+    normalize_newlines,
+    parse_json_file,
+    resolve_command,
+    run_subprocess,
+)
 from .prompts import build_corrected_prompt, build_ruby_prompt, build_summary_prompt
 from .timing import restore_inline_timestamps
 
@@ -35,6 +44,7 @@ def generate_outputs(
     codex_bin: str,
     claude_bin: str,
     prompt_extra: str,
+    ocr_reference_file: Path | None = None,
 ) -> GenerationResult:
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = base_name or f"{subtitle_file.stem}.ruby"
@@ -56,6 +66,7 @@ def generate_outputs(
         subtitle_file=subtitle_file,
         corrected_path=corrected_path,
         prompt_extra=prompt_extra,
+        ocr_reference_file=ocr_reference_file,
         backend=backend,
     )
     corrected_text = restore_inline_timestamps(source_text, corrected_text)
@@ -93,6 +104,7 @@ def generate_outputs(
         webvtt_path=webvtt_path,
         player_path=player_path,
         summary=summary,
+        ocr_reference_file=ocr_reference_file,
     )
 
     return GenerationResult(
@@ -119,6 +131,7 @@ def get_corrected_vtt(
     subtitle_file: Path,
     corrected_path: Path,
     prompt_extra: str,
+    ocr_reference_file: Path | None,
     backend: BackendOptions,
 ) -> str:
     if corrected_path.is_file():
@@ -126,7 +139,9 @@ def get_corrected_vtt(
 
     payload = run_generation_backend(
         provider=backend.provider,
-        prompt=build_corrected_prompt(subtitle_file, prompt_extra),
+        prompt=build_corrected_prompt(
+            subtitle_file, prompt_extra, ocr_reference_file=ocr_reference_file
+        ),
         schema=CORRECTED_OUTPUT_SCHEMA,
         subtitle_dir=backend.subtitle_dir,
         model=backend.model,
@@ -142,7 +157,9 @@ def get_corrected_vtt(
     return corrected_text
 
 
-def get_ruby_vtt(*, corrected_text: str, webvtt_path: Path, backend: BackendOptions) -> str:
+def get_ruby_vtt(
+    *, corrected_text: str, webvtt_path: Path, backend: BackendOptions
+) -> str:
     if webvtt_path.is_file():
         return read_existing_vtt(webvtt_path, "webvtt")
 
@@ -164,7 +181,9 @@ def get_ruby_vtt(*, corrected_text: str, webvtt_path: Path, backend: BackendOpti
     return webvtt_text
 
 
-def get_summary(*, corrected_text: str, summary_path: Path, backend: BackendOptions) -> str:
+def get_summary(
+    *, corrected_text: str, summary_path: Path, backend: BackendOptions
+) -> str:
     if summary_path.is_file():
         return summary_path.read_text(encoding="utf-8").strip()
 
@@ -191,7 +210,11 @@ def read_existing_vtt(path: Path, label: str) -> str:
 
 
 def write_text_if_changed(path: Path, text: str) -> None:
-    if path.is_file() and normalize_newlines(path.read_text(encoding="utf-8-sig")).strip() + "\n" == text:
+    if (
+        path.is_file()
+        and normalize_newlines(path.read_text(encoding="utf-8-sig")).strip() + "\n"
+        == text
+    ):
         return
     path.write_text(text, encoding="utf-8")
 
@@ -220,7 +243,9 @@ def normalize_vtt_output(payload: dict[str, Any], key: str) -> str:
     return normalize_newlines(payload[key]).strip() + "\n"
 
 
-def maybe_generate_player(*, output_dir: Path, stem: str, subtitle_file: Path, webvtt_path: Path) -> Path | None:
+def maybe_generate_player(
+    *, output_dir: Path, stem: str, subtitle_file: Path, webvtt_path: Path
+) -> Path | None:
     sibling_video = find_video_near_subtitle(subtitle_file)
     if sibling_video is None and not find_source_url_near_subtitle(webvtt_path):
         return None
@@ -246,6 +271,7 @@ def write_generation_manifest(
     webvtt_path: Path,
     player_path: Path | None,
     summary: object,
+    ocr_reference_file: Path | None,
 ) -> None:
     manifest = {
         "provider": provider,
@@ -256,6 +282,7 @@ def write_generation_manifest(
         "webvtt_path": str(webvtt_path),
         "player_path": str(player_path) if player_path else None,
         "summary": summary,
+        "ocr_reference_file": str(ocr_reference_file) if ocr_reference_file else None,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
     (output_dir / f"{stem}.manifest.json").write_text(
@@ -283,7 +310,9 @@ def validate_outputs(corrected_text: str, webvtt_text: str) -> list[str]:
         if strip_to_plain(str(corrected["text"])) != strip_to_plain(str(ruby["text"]))
     )
     if mismatched:
-        warnings.append(f"{mismatched} ruby cue(s) differ in text from the corrected transcript")
+        warnings.append(
+            f"{mismatched} ruby cue(s) differ in text from the corrected transcript"
+        )
     return warnings
 
 
@@ -295,9 +324,13 @@ def validate_vtt(text: str, label: str) -> tuple[list[dict[str, object]], list[s
     warnings: list[str] = []
     if empty := sum(1 for cue in cues if not str(cue["text"]).strip()):
         warnings.append(f"{label}: {empty} empty cue(s)")
-    if bad := sum(1 for cue in cues if not 0 <= float(cue["start"]) < float(cue["end"])):
+    if bad := sum(
+        1 for cue in cues if not 0 <= float(cue["start"]) < float(cue["end"])
+    ):
         warnings.append(f"{label}: {bad} cue(s) with non-positive or negative duration")
-    if disordered := sum(1 for a, b in zip(cues, cues[1:]) if float(b["start"]) < float(a["start"])):
+    if disordered := sum(
+        1 for a, b in zip(cues, cues[1:]) if float(b["start"]) < float(a["start"])
+    ):
         warnings.append(f"{label}: {disordered} cue(s) out of chronological order")
     return cues, warnings
 
@@ -309,14 +342,20 @@ def strip_to_plain(text: str) -> str:
     return re.sub(r"\s+", "", text)
 
 
-def run_codex(prompt: str, cwd: Path, model: str, codex_bin: str, schema: dict[str, Any]) -> dict[str, Any]:
-    codex = resolve_command(codex_bin, windows_preferred=("codex.cmd", "codex.exe", "codex"))
+def run_codex(
+    prompt: str, cwd: Path, model: str, codex_bin: str, schema: dict[str, Any]
+) -> dict[str, Any]:
+    codex = resolve_command(
+        codex_bin, windows_preferred=("codex.cmd", "codex.exe", "codex")
+    )
 
     with tempfile.TemporaryDirectory(prefix="yt-ruby-subs-codex-") as temp_dir_str:
         temp_dir = Path(temp_dir_str)
         schema_path = temp_dir / "schema.json"
         output_path = temp_dir / "result.json"
-        schema_path.write_text(json.dumps(schema, ensure_ascii=False, indent=2), encoding="utf-8")
+        schema_path.write_text(
+            json.dumps(schema, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
         command = [
             codex,
@@ -342,8 +381,12 @@ def run_codex(prompt: str, cwd: Path, model: str, codex_bin: str, schema: dict[s
         return parse_json_file(output_path)
 
 
-def run_claude(prompt: str, cwd: Path, model: str, claude_bin: str, schema: dict[str, Any]) -> dict[str, Any]:
-    claude = resolve_command(claude_bin, windows_preferred=("claude.exe", "claude.cmd", "claude"))
+def run_claude(
+    prompt: str, cwd: Path, model: str, claude_bin: str, schema: dict[str, Any]
+) -> dict[str, Any]:
+    claude = resolve_command(
+        claude_bin, windows_preferred=("claude.exe", "claude.cmd", "claude")
+    )
     command = [
         claude,
         "-p",
@@ -371,7 +414,9 @@ def run_claude(prompt: str, cwd: Path, model: str, claude_bin: str, schema: dict
     raise CliError("Claude returned JSON, but not an object payload")
 
 
-def run_chat_api(prompt: str, model: str, api_base_url: str, schema: dict[str, Any]) -> dict[str, Any]:
+def run_chat_api(
+    prompt: str, model: str, api_base_url: str, schema: dict[str, Any]
+) -> dict[str, Any]:
     api_key = resolve_api_key()
     body: dict[str, Any] = {
         "messages": [
@@ -405,8 +450,12 @@ def run_chat_api(prompt: str, model: str, api_base_url: str, schema: dict[str, A
         "Content-Type": "application/json",
     }
     if "openrouter.ai" in api_base_url:
-        headers["HTTP-Referer"] = os.getenv("YT_RUBY_SUBS_HTTP_REFERER", "https://localhost")
-        headers["X-OpenRouter-Title"] = os.getenv("YT_RUBY_SUBS_OPENROUTER_TITLE", "yt-ruby-subs")
+        headers["HTTP-Referer"] = os.getenv(
+            "YT_RUBY_SUBS_HTTP_REFERER", "https://localhost"
+        )
+        headers["X-OpenRouter-Title"] = os.getenv(
+            "YT_RUBY_SUBS_OPENROUTER_TITLE", "yt-ruby-subs"
+        )
 
     request = urllib.request.Request(
         api_base_url,
@@ -444,7 +493,9 @@ def resolve_api_key() -> str:
     )
 
 
-def parse_chat_api_payload(payload: Any, expected_keys: tuple[str, ...]) -> dict[str, Any]:
+def parse_chat_api_payload(
+    payload: Any, expected_keys: tuple[str, ...]
+) -> dict[str, Any]:
     if isinstance(payload, dict) and all(key in payload for key in expected_keys):
         return payload
 

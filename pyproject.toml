@@ -9,6 +9,15 @@ authors = [
 requires-python = ">=3.13"
 dependencies = []
 
+[project.optional-dependencies]
+ocr = [
+    "pillow>=10.0.0",
+    "pytesseract>=0.3.13",
+]
+paddleocr-vl = [
+    "paddleocr[doc-parser]>=3.6.0",
+]
+
 [project.scripts]
 yt-ruby-subs = "yt_ruby_subs:main"
 yt-ruby-subs-clean = "yt_ruby_subs.clean:main"

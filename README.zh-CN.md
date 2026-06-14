@@ -94,12 +94,45 @@ uv run yt-ruby-subs generate ".\downloads\example\video.ja.vtt" --provider api -
 uv run yt-ruby-subs player ".\downloads\example\video.webm" ".\downloads\example\video.ja.ruby.vtt"
 ```
 
+## OCR 参考文本
+
+如果视频自带日语硬字幕，`run` 可以在下载视频后 OCR 视频下方区域，并把识别文本交给 AI 修正字幕时参考。
+
+Tesseract:
+
+```bash
+uv sync --extra ocr
+uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr
+```
+
+这条路径还需要 `ffmpeg`、Tesseract，以及日语 Tesseract 语言数据。
+
+PaddleOCR-VL 1.6:
+
+```bash
+uv sync --extra paddleocr-vl
+uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine paddleocr-vl
+```
+
+使用 VLM service 后端:
+
+```bash
+uv run yt-ruby-subs run "https://example.com/video" --ocr --ocr-engine paddleocr-vl --paddleocr-vl-backend vllm-server --paddleocr-vl-server-url "http://localhost:8000/v1" --paddleocr-vl-api-model-name "PaddlePaddle/PaddleOCR-VL-1.6"
+```
+
+复用已有 OCR 文件:
+
+```bash
+uv run yt-ruby-subs generate ".\downloads\example\video.ja.vtt" --ocr-reference ".\downloads\example\video.hard-sub-ocr.txt"
+```
+
 ## 输出文件
 
 `run` 默认写入 `downloads/<标题 时间戳>/`。`generate` 默认写到输入字幕旁边，除非你传入 `--output-dir`。
 
 常见输出:
 
+- `<video>.hard-sub-ocr.txt`: 可选的硬字幕 OCR 参考文本
 - `<name>.ruby.corrected.vtt`: 修正后的字幕
 - `<name>.ruby.vtt`: 带 ruby 注音的字幕
 - `<name>.ruby.summary.txt`: 视频简介
