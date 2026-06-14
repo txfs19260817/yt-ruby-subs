@@ -378,12 +378,14 @@
     let pollTimer = null;
     let playerReady = false;
     let pendingSeek = null;
-    let mediaRecorder = null;
-    let recordingStream = null;
-    let recordingChunks = [];
-    let recordingAudio = null;
-    let recordingUrl = '';
-    let recordingActive = false;
+    const recording = {
+      mediaRecorder: null,
+      stream: null,
+      chunks: [],
+      audio: null,
+      url: '',
+      active: false,
+    };
 
     function formatTime(seconds) {
       const total = Math.max(0, Math.floor(seconds));
@@ -442,9 +444,9 @@
       let activeIndex = -1;
       for (let index = 0; index < segments.length; index += 1) {
         const segment = segments[index];
-        const next = segments[index + 1];
+        const next = segments.at(index + 1);
         const start = segment.startTime ?? -1;
-        const end = next && next.startTime !== null ? next.startTime : Number.POSITIVE_INFINITY;
+        const end = next?.startTime ?? Number.POSITIVE_INFINITY;
         if (start >= 0 && currentSeconds >= start && currentSeconds < end) {
           activeIndex = index;
           break;
@@ -458,27 +460,25 @@
 
     // ---- unified media controls (local <video> or YouTube iframe) ----
     function getCurrentTime() {
-      if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') return ytPlayer.getCurrentTime();
-      if (localVideo) return localVideo.currentTime;
-      return 0;
+      if (typeof ytPlayer?.getCurrentTime === 'function') return ytPlayer.getCurrentTime();
+      return localVideo?.currentTime ?? 0;
     }
     function isPlaying() {
-      if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') return ytPlayer.getPlayerState() === 1;
-      if (localVideo) return !localVideo.paused;
-      return false;
+      if (typeof ytPlayer?.getPlayerState === 'function') return ytPlayer.getPlayerState() === 1;
+      return Boolean(localVideo && !localVideo.paused);
     }
     function playMedia() {
-      if (ytPlayer && typeof ytPlayer.playVideo === 'function') { ytPlayer.playVideo(); return; }
-      if (localVideo) localVideo.play().catch(() => {});
+      if (typeof ytPlayer?.playVideo === 'function') { ytPlayer.playVideo(); return; }
+      localVideo?.play().catch(() => {});
     }
     function pauseMedia() {
-      if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') { ytPlayer.pauseVideo(); return; }
-      if (localVideo) localVideo.pause();
+      if (typeof ytPlayer?.pauseVideo === 'function') { ytPlayer.pauseVideo(); return; }
+      localVideo?.pause();
     }
     function togglePlay() { isPlaying() ? pauseMedia() : playMedia(); }
     function setRate(rate) {
       playbackRate = rate;
-      if (ytPlayer && typeof ytPlayer.setPlaybackRate === 'function') ytPlayer.setPlaybackRate(rate);
+      if (typeof ytPlayer?.setPlaybackRate === 'function') ytPlayer.setPlaybackRate(rate);
       if (localVideo) localVideo.playbackRate = rate;
       for (const button of speedGroup.querySelectorAll('button')) {
         button.classList.toggle('on', Number(button.dataset.rate) === rate);
@@ -560,7 +560,7 @@
       enforcePlaybackAids();
     }
     function startTicking() {
-      if (!pollTimer) pollTimer = window.setInterval(tick, 100);
+      pollTimer ??= window.setInterval(tick, 100);
     }
 
     function selectCue(index, { seek = true } = {}) {
@@ -583,7 +583,7 @@
       selectCue(index);
     }
     function playOriginalCue() {
-      if (recordingAudio) recordingAudio.pause();
+      recording.audio?.pause();
       replayCurrent();
       setRecordingStatus('播放原音');
     }
@@ -614,20 +614,21 @@
       setRate(rates[next]);
     }
 
+    const toolbarActions = {
+      prev: () => step(-1),
+      next: () => step(1),
+      play: togglePlay,
+      replay: replayCurrent,
+      loop: toggleLoop,
+      autopause: toggleAutoPause,
+      furigana: toggleFurigana,
+      mask: toggleMask,
+      speed: (button) => setRate(Number(button.dataset.rate)),
+    };
+
     toolbar.addEventListener('click', (event) => {
-      const button = event.target.closest('button');
-      if (!button) return;
-      switch (button.dataset.act) {
-        case 'prev': step(-1); break;
-        case 'next': step(1); break;
-        case 'play': togglePlay(); break;
-        case 'replay': replayCurrent(); break;
-        case 'loop': toggleLoop(); break;
-        case 'autopause': toggleAutoPause(); break;
-        case 'furigana': toggleFurigana(); break;
-        case 'mask': toggleMask(); break;
-        case 'speed': setRate(Number(button.dataset.rate)); break;
-      }
+      const button = event.target?.closest?.('button');
+      toolbarActions[button?.dataset.act]?.(button);
     });
 
     function recordingButton(action) {
@@ -637,34 +638,34 @@
       recordingStatus.textContent = text;
     }
     function updateRecordingControls() {
-      recordingButton('record').textContent = recordingActive ? '■ 停止' : '● 录音';
-      recordingButton('record').classList.toggle('on', recordingActive);
-      recordingButton('play-recording').disabled = !recordingAudio || recordingActive;
-      recordingButton('clear-recording').disabled = !recordingAudio || recordingActive;
+      recordingButton('record').textContent = recording.active ? '■ 停止' : '● 录音';
+      recordingButton('record').classList.toggle('on', recording.active);
+      recordingButton('play-recording').disabled = !recording.audio || recording.active;
+      recordingButton('clear-recording').disabled = !recording.audio || recording.active;
     }
     function stopRecordingStream() {
-      if (!recordingStream) return;
-      for (const track of recordingStream.getTracks()) {
+      if (!recording.stream) return;
+      for (const track of recording.stream.getTracks()) {
         track.stop();
       }
-      recordingStream = null;
+      recording.stream = null;
     }
     function finishRecording() {
-      recordingActive = false;
+      recording.active = false;
       stopRecordingStream();
-      if (recordingUrl) URL.revokeObjectURL(recordingUrl);
-      if (!recordingChunks.length) {
-        recordingAudio = null;
-        recordingUrl = '';
+      if (recording.url) URL.revokeObjectURL(recording.url);
+      if (!recording.chunks.length) {
+        recording.audio = null;
+        recording.url = '';
         setRecordingStatus('没有录到声音');
         updateRecordingControls();
         return;
       }
-      const blob = new Blob(recordingChunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
-      recordingUrl = URL.createObjectURL(blob);
-      recordingAudio = new Audio(recordingUrl);
-      recordingAudio.addEventListener('ended', () => setRecordingStatus('录音播放完成'));
-      mediaRecorder = null;
+      const blob = new Blob(recording.chunks, { type: recording.mediaRecorder?.mimeType || 'audio/webm' });
+      recording.url = URL.createObjectURL(blob);
+      recording.audio = new Audio(recording.url);
+      recording.audio.addEventListener('ended', () => setRecordingStatus('录音播放完成'));
+      recording.mediaRecorder = null;
       setRecordingStatus('录音已就绪');
       updateRecordingControls();
     }
@@ -674,15 +675,15 @@
         return;
       }
       try {
-        recordingChunks = [];
-        recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(recordingStream);
-        mediaRecorder.addEventListener('dataavailable', (event) => {
-          if (event.data && event.data.size > 0) recordingChunks.push(event.data);
+        recording.chunks = [];
+        recording.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recording.mediaRecorder = new MediaRecorder(recording.stream);
+        recording.mediaRecorder.addEventListener('dataavailable', (event) => {
+          if (event.data && event.data.size > 0) recording.chunks.push(event.data);
         });
-        mediaRecorder.addEventListener('stop', finishRecording, { once: true });
-        mediaRecorder.start();
-        recordingActive = true;
+        recording.mediaRecorder.addEventListener('stop', finishRecording, { once: true });
+        recording.mediaRecorder.start();
+        recording.active = true;
         setRecordingStatus('录音中');
         updateRecordingControls();
       } catch (error) {
@@ -692,67 +693,69 @@
       }
     }
     function stopRecording() {
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-      }
+      if (recording.mediaRecorder?.state === 'recording') recording.mediaRecorder.stop();
     }
     function toggleRecording() {
-      if (recordingActive) {
+      if (recording.active) {
         stopRecording();
         return;
       }
       startRecording();
     }
     function playRecording() {
-      if (!recordingAudio) {
+      if (!recording.audio) {
         setRecordingStatus('没有可播放的录音');
         return;
       }
       pauseMedia();
-      recordingAudio.currentTime = 0;
+      recording.audio.currentTime = 0;
       setRecordingStatus('播放录音');
-      recordingAudio.play().catch(() => setRecordingStatus('录音播放失败'));
+      recording.audio.play().catch(() => setRecordingStatus('录音播放失败'));
     }
     function clearRecording() {
-      if (recordingActive) stopRecording();
-      if (recordingAudio) recordingAudio.pause();
-      if (recordingUrl) URL.revokeObjectURL(recordingUrl);
-      recordingAudio = null;
-      recordingUrl = '';
-      recordingChunks = [];
+      if (recording.active) stopRecording();
+      recording.audio?.pause();
+      if (recording.url) URL.revokeObjectURL(recording.url);
+      recording.audio = null;
+      recording.url = '';
+      recording.chunks = [];
       setRecordingStatus('未录音');
       updateRecordingControls();
     }
+
+    const recordingActions = {
+      'play-original': playOriginalCue,
+      record: toggleRecording,
+      'play-recording': playRecording,
+      'clear-recording': clearRecording,
+    };
+
     recordingPanel.addEventListener('click', (event) => {
-      const button = event.target.closest('button');
-      if (!button) return;
-      switch (button.dataset.recordingAct) {
-        case 'play-original': playOriginalCue(); break;
-        case 'record': toggleRecording(); break;
-        case 'play-recording': playRecording(); break;
-        case 'clear-recording': clearRecording(); break;
-      }
+      const button = event.target?.closest?.('button');
+      recordingActions[button?.dataset.recordingAct]?.();
     });
     window.addEventListener('beforeunload', () => {
       stopRecordingStream();
-      if (recordingUrl) URL.revokeObjectURL(recordingUrl);
+      if (recording.url) URL.revokeObjectURL(recording.url);
     });
 
+    const keyActions = new Map([
+      ['Space', (event) => { event.preventDefault(); togglePlay(); }],
+      ['ArrowLeft', (event) => { event.preventDefault(); step(-1); }],
+      ['ArrowRight', (event) => { event.preventDefault(); step(1); }],
+      ['KeyR', replayCurrent],
+      ['KeyL', toggleLoop],
+      ['KeyP', toggleAutoPause],
+      ['KeyF', toggleFurigana],
+      ['KeyM', toggleMask],
+      ['Minus', () => cycleSpeed(-1)],
+      ['Equal', () => cycleSpeed(1)],
+    ]);
+
     document.addEventListener('keydown', (event) => {
-      if (event.target.matches('input, textarea, [contenteditable="true"]')) return;
+      if (event.target?.matches?.('input, textarea, [contenteditable="true"]')) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      switch (event.code) {
-        case 'Space': event.preventDefault(); togglePlay(); break;
-        case 'ArrowLeft': event.preventDefault(); step(-1); break;
-        case 'ArrowRight': event.preventDefault(); step(1); break;
-        case 'KeyR': replayCurrent(); break;
-        case 'KeyL': toggleLoop(); break;
-        case 'KeyP': toggleAutoPause(); break;
-        case 'KeyF': toggleFurigana(); break;
-        case 'KeyM': toggleMask(); break;
-        case 'Minus': cycleSpeed(-1); break;
-        case 'Equal': cycleSpeed(1); break;
-      }
+      keyActions.get(event.code)?.(event);
     });
 
     function renderCueList() {
