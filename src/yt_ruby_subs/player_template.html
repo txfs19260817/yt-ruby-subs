@@ -119,6 +119,47 @@
 
     .now-playing { flex: 0 0 auto; }
     .now-playing small { color: var(--study-muted); }
+    .recording-panel {
+      flex: 0 0 auto;
+      border-top: 1px solid var(--study-border);
+      padding-top: 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .recording-panel small { color: var(--study-muted); }
+    .recording-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .recording-controls button {
+      width: auto;
+      margin: 0;
+      padding: 0.4rem 0.7rem;
+      font-size: 0.85rem;
+      line-height: 1;
+      border-radius: 0.6rem;
+      border: 1px solid var(--study-border);
+      background: var(--study-panel-2);
+      color: var(--study-text);
+      cursor: pointer;
+    }
+    .recording-controls button:hover:not(:disabled) { border-color: var(--study-accent); }
+    .recording-controls button.on {
+      border-color: var(--study-accent);
+      background: var(--study-accent-soft);
+      color: #ffd9bf;
+    }
+    .recording-controls button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .recording-status {
+      min-height: 1.2em;
+      margin: 0;
+      font-size: 0.85rem;
+    }
     .sidebar { display: flex; flex-direction: column; min-height: 0; }
     .sidebar header { margin-bottom: 0.6rem; }
     .shortcuts { font-size: 0.78rem; color: var(--study-muted); margin: 0.35rem 0 0; }
@@ -245,6 +286,16 @@
           <div id="current-time" class="player-note">00:00:00 → 00:00:00</div>
           <div id="current-cue" class="cue-text">点击右侧任意字幕，从该句开始播放。</div>
         </section>
+        <section class="recording-panel" id="recording-panel">
+          <small>跟读录音</small>
+          <div class="recording-controls">
+            <button type="button" data-recording-act="play-original" title="播放当前句原音">A 原音</button>
+            <button type="button" data-recording-act="record" title="开始 / 停止录音">● 录音</button>
+            <button type="button" data-recording-act="play-recording" title="播放录音" disabled>B 录音</button>
+            <button type="button" data-recording-act="clear-recording" title="清除录音" disabled>清除</button>
+          </div>
+          <div id="recording-status" class="player-note recording-status" role="status">未录音</div>
+        </section>
       </article>
       <article class="sidebar">
         <header>
@@ -283,6 +334,8 @@
     const sourceLinkEl = document.getElementById('source-link');
     const toolbar = document.getElementById('toolbar');
     const speedGroup = document.getElementById('speed-group');
+    const recordingPanel = document.getElementById('recording-panel');
+    const recordingStatus = document.getElementById('recording-status');
 
     titleEl.textContent = pageTitle;
     labelsEl.textContent = `视频: ${videoLabel} | 字幕: ${subtitleLabel}`;
@@ -305,6 +358,12 @@
     let pollTimer = null;
     let playerReady = false;
     let pendingSeek = null;
+    let mediaRecorder = null;
+    let recordingStream = null;
+    let recordingChunks = [];
+    let recordingAudio = null;
+    let recordingUrl = '';
+    let recordingActive = false;
 
     function formatTime(seconds) {
       const total = Math.max(0, Math.floor(seconds));
@@ -503,6 +562,11 @@
       const index = selectedCueIndex >= 0 ? selectedCueIndex : (activeCueIndex >= 0 ? activeCueIndex : 0);
       selectCue(index);
     }
+    function playOriginalCue() {
+      if (recordingAudio) recordingAudio.pause();
+      replayCurrent();
+      setRecordingStatus('播放原音');
+    }
     function toggleLoop() {
       loopEnabled = !loopEnabled;
       if (loopEnabled && selectedCueIndex < 0) selectedCueIndex = activeCueIndex >= 0 ? activeCueIndex : 0;
@@ -544,6 +608,114 @@
         case 'mask': toggleMask(); break;
         case 'speed': setRate(Number(button.dataset.rate)); break;
       }
+    });
+
+    function recordingButton(action) {
+      return recordingPanel.querySelector(`[data-recording-act="${action}"]`);
+    }
+    function setRecordingStatus(text) {
+      recordingStatus.textContent = text;
+    }
+    function updateRecordingControls() {
+      recordingButton('record').textContent = recordingActive ? '■ 停止' : '● 录音';
+      recordingButton('record').classList.toggle('on', recordingActive);
+      recordingButton('play-recording').disabled = !recordingAudio || recordingActive;
+      recordingButton('clear-recording').disabled = !recordingAudio || recordingActive;
+    }
+    function stopRecordingStream() {
+      if (!recordingStream) return;
+      for (const track of recordingStream.getTracks()) {
+        track.stop();
+      }
+      recordingStream = null;
+    }
+    function finishRecording() {
+      recordingActive = false;
+      stopRecordingStream();
+      if (recordingUrl) URL.revokeObjectURL(recordingUrl);
+      if (!recordingChunks.length) {
+        recordingAudio = null;
+        recordingUrl = '';
+        setRecordingStatus('没有录到声音');
+        updateRecordingControls();
+        return;
+      }
+      const blob = new Blob(recordingChunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
+      recordingUrl = URL.createObjectURL(blob);
+      recordingAudio = new Audio(recordingUrl);
+      recordingAudio.addEventListener('ended', () => setRecordingStatus('录音播放完成'));
+      mediaRecorder = null;
+      setRecordingStatus('录音已就绪');
+      updateRecordingControls();
+    }
+    async function startRecording() {
+      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+        setRecordingStatus('当前浏览器不支持录音');
+        return;
+      }
+      try {
+        recordingChunks = [];
+        recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(recordingStream);
+        mediaRecorder.addEventListener('dataavailable', (event) => {
+          if (event.data && event.data.size > 0) recordingChunks.push(event.data);
+        });
+        mediaRecorder.addEventListener('stop', finishRecording, { once: true });
+        mediaRecorder.start();
+        recordingActive = true;
+        setRecordingStatus('录音中');
+        updateRecordingControls();
+      } catch (error) {
+        stopRecordingStream();
+        setRecordingStatus('麦克风不可用');
+        updateRecordingControls();
+      }
+    }
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+    }
+    function toggleRecording() {
+      if (recordingActive) {
+        stopRecording();
+        return;
+      }
+      startRecording();
+    }
+    function playRecording() {
+      if (!recordingAudio) {
+        setRecordingStatus('没有可播放的录音');
+        return;
+      }
+      pauseMedia();
+      recordingAudio.currentTime = 0;
+      setRecordingStatus('播放录音');
+      recordingAudio.play().catch(() => setRecordingStatus('录音播放失败'));
+    }
+    function clearRecording() {
+      if (recordingActive) stopRecording();
+      if (recordingAudio) recordingAudio.pause();
+      if (recordingUrl) URL.revokeObjectURL(recordingUrl);
+      recordingAudio = null;
+      recordingUrl = '';
+      recordingChunks = [];
+      setRecordingStatus('未录音');
+      updateRecordingControls();
+    }
+    recordingPanel.addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      switch (button.dataset.recordingAct) {
+        case 'play-original': playOriginalCue(); break;
+        case 'record': toggleRecording(); break;
+        case 'play-recording': playRecording(); break;
+        case 'clear-recording': clearRecording(); break;
+      }
+    });
+    window.addEventListener('beforeunload', () => {
+      stopRecordingStream();
+      if (recordingUrl) URL.revokeObjectURL(recordingUrl);
     });
 
     document.addEventListener('keydown', (event) => {

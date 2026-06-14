@@ -120,6 +120,25 @@ def test_player_template_includes_mask_mode_controls() -> None:
     assert "KeyM" in page
 
 
+def test_player_template_includes_recording_controls() -> None:
+    page = player.build_player_html(
+        page_title="Practice",
+        local_video_src="clip.mp4",
+        video_label="clip.mp4",
+        subtitle_label="clip.vtt",
+        cues=[{"start": 1.0, "end": 2.0, "text": "字幕"}],
+        source_url=None,
+        youtube_id=None,
+    )
+
+    assert 'data-recording-act="play-original"' in page
+    assert 'data-recording-act="record"' in page
+    assert 'data-recording-act="play-recording"' in page
+    assert "navigator.mediaDevices.getUserMedia" in page
+    assert "new MediaRecorder" in page
+    assert "recording-status" in page
+
+
 def test_path_to_href_quotes_spaces_and_preserves_url_safe_chars() -> None:
     assert (
         player.path_to_href(r"folder\clip 1 [draft].mp4")
