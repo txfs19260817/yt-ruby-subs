@@ -2,7 +2,7 @@ import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
@@ -138,6 +138,74 @@ def test_run_hard_subtitle_ocr_supports_paddleocr_vl(
     assert created_options[0].paddleocr_vl_backend == "vllm-server"
 
 
+def test_run_hard_subtitle_ocr_supports_ppocrv6(
+    monkeypatch: Any,
+    tmp_path: Path,
+) -> None:
+    video = tmp_path / "clip.mp4"
+    video.write_text("video", encoding="utf-8")
+    output = tmp_path / "clip.hard-sub-ocr.txt"
+    created_options: list[ocr.OcrOptions] = []
+
+    monkeypatch.setattr(ocr, "resolve_command", lambda raw, *, windows_preferred: raw)
+
+    def fake_run_subprocess(
+        command: list[str],
+        *,
+        cwd: Path,
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        frame_pattern = Path(command[-1])
+        frame_pattern.parent.mkdir(parents=True, exist_ok=True)
+        (frame_pattern.parent / "frame_000001.png").write_text(
+            "frame", encoding="utf-8"
+        )
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    @dataclass(slots=True)
+    class FakeResult:
+        json: dict[str, object]
+
+    class FakePipeline:
+        def predict(self, image: str) -> list[FakeResult]:
+            assert image.endswith("frame_000001.png")
+            return [
+                FakeResult(
+                    {
+                        "res": {
+                            "rec_texts": ["昇龍拳", "", "波動拳"],
+                        }
+                    }
+                )
+            ]
+
+    def fake_create_ppocrv6_pipeline(options: ocr.OcrOptions) -> FakePipeline:
+        created_options.append(options)
+        return FakePipeline()
+
+    monkeypatch.setattr(ocr, "run_subprocess", fake_run_subprocess)
+    monkeypatch.setattr(ocr, "create_ppocrv6_pipeline", fake_create_ppocrv6_pipeline)
+
+    result = ocr.run_hard_subtitle_ocr(
+        video_file=video,
+        output_file=output,
+        options=ocr.OcrOptions(
+            engine="ppocrv6",
+            ppocrv6_model="tiny",
+            ppocrv6_device="gpu:0",
+        ),
+    )
+
+    text = output.read_text(encoding="utf-8")
+    assert result == output
+    assert "# engine: ppocrv6" in text
+    assert "# ppocrv6_model: tiny" in text
+    assert "# ppocrv6_device: gpu:0" in text
+    assert "昇龍拳\n波動拳" in text
+    assert created_options[0].ppocrv6_model == "tiny"
+    assert created_options[0].ppocrv6_device == "gpu:0"
+
+
 def test_run_hard_subtitle_ocr_can_place_temp_dir_under_output(
     monkeypatch: Any,
     tmp_path: Path,
@@ -227,6 +295,52 @@ def test_paddleocr_vl_rejects_cpu_device() -> None:
 
     with pytest.raises(CliError, match="GPU-only"):
         ocr.validate_ocr_options(options)
+
+
+def test_ppocrv6_rejects_cpu_device() -> None:
+    options = ocr.OcrOptions(engine="ppocrv6", ppocrv6_device="cpu")
+
+    with pytest.raises(CliError, match="GPU-only"):
+        ocr.validate_ocr_options(options)
+
+
+def test_ppocrv6_rejects_unknown_model_size() -> None:
+    options = ocr.OcrOptions(engine="ppocrv6", ppocrv6_model="large")
+
+    with pytest.raises(CliError, match="ppocrv6-model"):
+        ocr.validate_ocr_options(options)
+
+
+def test_create_ppocrv6_pipeline_uses_selected_model_and_gpu(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    fake_paddleocr = ModuleType("paddleocr")
+
+    class FakePaddleOCR:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    fake_paddleocr.PaddleOCR = FakePaddleOCR
+    monkeypatch.setitem(ocr.sys.modules, "paddleocr", fake_paddleocr)
+    monkeypatch.setattr(ocr, "ensure_paddle_gpu_available", lambda *args: None)
+
+    pipeline = ocr.create_ppocrv6_pipeline(
+        ocr.OcrOptions(
+            engine="ppocrv6",
+            ppocrv6_model="small",
+            ppocrv6_device="gpu:1",
+        )
+    )
+
+    assert isinstance(pipeline, FakePaddleOCR)
+    assert captured["ocr_version"] == "PP-OCRv6"
+    assert captured["device"] == "gpu:1"
+    assert captured["text_detection_model_name"] == "PP-OCRv6_small_det"
+    assert captured["text_recognition_model_name"] == "PP-OCRv6_small_rec"
+    assert captured["use_doc_orientation_classify"] is False
+    assert captured["use_doc_unwarping"] is False
+    assert captured["use_textline_orientation"] is False
 
 
 def test_release_frame_recognizer_clears_paddle_pipeline_and_cuda_cache(

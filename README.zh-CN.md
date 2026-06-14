@@ -116,6 +116,15 @@ uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr
 
 这条路径还需要 `ffmpeg`、Tesseract，以及日语 Tesseract 语言数据。
 
+PP-OCRv6:
+
+```bash
+uv sync --extra ppocrv6
+uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine ppocrv6
+```
+
+本项目约定 PP-OCRv6 只走 GPU，默认使用 `gpu:0` 上的 tiny 模型。需要更高精度时可以传 `--ppocrv6-model small` 或 `--ppocrv6-model medium`。
+
 PaddleOCR-VL 1.6:
 
 ```bash
@@ -123,7 +132,7 @@ uv sync --extra paddleocr-vl
 uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine paddleocr-vl
 ```
 
-本项目约定 PaddleOCR-VL 只走 GPU。`paddleocr-vl` extra 会从 Paddle 的 CUDA 13.0 包索引安装 `paddlepaddle-gpu`，CLI 默认 `--paddleocr-vl-device gpu`。如果你的 NVIDIA 驱动需要其他 CUDA wheel，修改 `pyproject.toml` 里的 `paddle-cu130` 索引。
+Paddle OCR extras 会从 Paddle 的 CUDA 13.0 包索引安装 `paddlepaddle-gpu`。PaddleOCR-VL 默认 `--paddleocr-vl-device gpu`。如果你的 NVIDIA 驱动需要其他 CUDA wheel，修改 `pyproject.toml` 里的 `paddle-cu130` 索引。
 
 使用 VLM service 后端:
 

@@ -206,6 +206,8 @@ def test_handle_run_generates_ocr_reference_before_generation(
         assert options.temp_dir == "output"
         assert options.paddleocr_vl_device == "gpu"
         assert options.paddleocr_vl_backend == "vllm-server"
+        assert options.ppocrv6_model == "tiny"
+        assert options.ppocrv6_device == "gpu:0"
         output_file.write_text("硬字幕OCR\n", encoding="utf-8")
         return output_file
 
@@ -248,6 +250,8 @@ def test_handle_run_generates_ocr_reference_before_generation(
         paddleocr_vl_server_url="http://localhost:8000/v1",
         paddleocr_vl_api_model_name="PaddlePaddle/PaddleOCR-VL-1.6",
         paddleocr_vl_api_key="",
+        ppocrv6_model="tiny",
+        ppocrv6_device="gpu:0",
         provider="codex",
         model=None,
         api_base_url="https://openrouter.ai/api/v1/chat/completions",
@@ -298,6 +302,25 @@ def test_run_parser_accepts_ocr_width_ratio() -> None:
     assert args.ocr_width_ratio == pytest.approx(0.7)
 
 
+def test_run_parser_accepts_ppocrv6_options() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "run",
+            "https://example.com/video",
+            "--ocr-engine",
+            "ppocrv6",
+            "--ppocrv6-model",
+            "medium",
+            "--ppocrv6-device",
+            "gpu:1",
+        ]
+    )
+
+    assert args.ocr_engine == "ppocrv6"
+    assert args.ppocrv6_model == "medium"
+    assert args.ppocrv6_device == "gpu:1"
+
+
 def test_generate_and_run_parser_default_model_and_api_flags() -> None:
     parser = cli.build_parser()
 
@@ -308,6 +331,8 @@ def test_generate_and_run_parser_default_model_and_api_flags() -> None:
     assert run_args.api_base_url == "https://openrouter.ai/api/v1/chat/completions"
     assert run_args.ocr_interval == pytest.approx(1.5)
     assert run_args.ocr_width_ratio == pytest.approx(0.8)
+    assert run_args.ppocrv6_model == "tiny"
+    assert run_args.ppocrv6_device == "gpu:0"
 
 
 def test_handle_player_generates_default_html(

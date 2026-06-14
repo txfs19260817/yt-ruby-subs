@@ -2742,6 +2742,17 @@ paddleocr-vl = [
     { name = "paddleocr", extra = ["doc-parser"] },
     { name = "paddlepaddle-gpu" },
 ]
+ppocrv6 = [
+    { name = "nvidia-cublas" },
+    { name = "nvidia-cuda-runtime" },
+    { name = "nvidia-cudnn-cu13" },
+    { name = "nvidia-cufft" },
+    { name = "nvidia-curand" },
+    { name = "nvidia-cusolver" },
+    { name = "nvidia-cusparse" },
+    { name = "paddleocr" },
+    { name = "paddlepaddle-gpu" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -2755,18 +2766,27 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "nvidia-cublas", marker = "extra == 'paddleocr-vl'", specifier = "==13.0.2.14" },
+    { name = "nvidia-cublas", marker = "extra == 'ppocrv6'", specifier = "==13.0.2.14" },
     { name = "nvidia-cuda-runtime", marker = "extra == 'paddleocr-vl'", specifier = "==13.0.88" },
+    { name = "nvidia-cuda-runtime", marker = "extra == 'ppocrv6'", specifier = "==13.0.88" },
     { name = "nvidia-cudnn-cu13", marker = "extra == 'paddleocr-vl'", specifier = "==9.13.0.50" },
+    { name = "nvidia-cudnn-cu13", marker = "extra == 'ppocrv6'", specifier = "==9.13.0.50" },
     { name = "nvidia-cufft", marker = "extra == 'paddleocr-vl'", specifier = "==12.0.0.61" },
+    { name = "nvidia-cufft", marker = "extra == 'ppocrv6'", specifier = "==12.0.0.61" },
     { name = "nvidia-curand", marker = "extra == 'paddleocr-vl'", specifier = "==10.4.0.35" },
+    { name = "nvidia-curand", marker = "extra == 'ppocrv6'", specifier = "==10.4.0.35" },
     { name = "nvidia-cusolver", marker = "extra == 'paddleocr-vl'", specifier = "==12.0.4.66" },
+    { name = "nvidia-cusolver", marker = "extra == 'ppocrv6'", specifier = "==12.0.4.66" },
     { name = "nvidia-cusparse", marker = "extra == 'paddleocr-vl'", specifier = "==12.6.3.3" },
+    { name = "nvidia-cusparse", marker = "extra == 'ppocrv6'", specifier = "==12.6.3.3" },
+    { name = "paddleocr", marker = "extra == 'ppocrv6'", specifier = ">=3.7.0" },
     { name = "paddleocr", extras = ["doc-parser"], marker = "extra == 'paddleocr-vl'", specifier = ">=3.6.0" },
     { name = "paddlepaddle-gpu", marker = "extra == 'paddleocr-vl'", specifier = "==3.3.0", index = "https://www.paddlepaddle.org.cn/packages/stable/cu130/" },
+    { name = "paddlepaddle-gpu", marker = "extra == 'ppocrv6'", specifier = "==3.3.0", index = "https://www.paddlepaddle.org.cn/packages/stable/cu130/" },
     { name = "pillow", marker = "extra == 'ocr'", specifier = ">=10.0.0" },
     { name = "pytesseract", marker = "extra == 'ocr'", specifier = ">=0.3.13" },
 ]
-provides-extras = ["ocr", "paddleocr-vl"]
+provides-extras = ["ocr", "paddleocr-vl", "ppocrv6"]
 
 [package.metadata.requires-dev]
 dev = [

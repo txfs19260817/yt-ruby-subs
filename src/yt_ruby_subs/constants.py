@@ -19,10 +19,28 @@ DEFAULT_OCR_FRAME_DEDUPE = True
 DEFAULT_OCR_INTERVAL_SECONDS = 1.5
 DEFAULT_OCR_TEMP_DIR = "system"
 DEFAULT_PADDLEOCR_VL_DEVICE = "gpu"
+DEFAULT_PPOCRV6_DEVICE = "gpu:0"
+DEFAULT_PPOCRV6_MODEL = "tiny"
 OCR_TEMP_DIR_MODES = ("system", "output")
 PADDLEOCR_VL_VERSION = "v1.6"
-SUPPORTED_OCR_ENGINES = ("tesseract", "paddleocr-vl")
+PPOCRV6_MODEL_NAMES: dict[str, dict[str, str]] = {
+    "tiny": {
+        "detection": "PP-OCRv6_tiny_det",
+        "recognition": "PP-OCRv6_tiny_rec",
+    },
+    "small": {
+        "detection": "PP-OCRv6_small_det",
+        "recognition": "PP-OCRv6_small_rec",
+    },
+    "medium": {
+        "detection": "PP-OCRv6_medium_det",
+        "recognition": "PP-OCRv6_medium_rec",
+    },
+}
+PPOCRV6_MODELS = tuple(PPOCRV6_MODEL_NAMES)
+SUPPORTED_OCR_ENGINES = ("tesseract", "paddleocr-vl", "ppocrv6")
 type OcrTempDirMode = Literal["system", "output"]
+type PpOcrV6Model = Literal["tiny", "small", "medium"]
 
 SUBTITLE_EXTENSIONS = {".vtt", ".srt", ".ass", ".ssa", ".ttml", ".srv3", ".json3"}
 

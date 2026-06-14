@@ -13,9 +13,12 @@ from .constants import (
     DEFAULT_OCR_TEMP_DIR,
     DEFAULT_OCR_WIDTH_RATIO,
     DEFAULT_PADDLEOCR_VL_DEVICE,
+    DEFAULT_PPOCRV6_DEVICE,
+    DEFAULT_PPOCRV6_MODEL,
     DEFAULT_YT_DLP_JS_RUNTIME,
     GENERATION_PROVIDERS,
     OCR_TEMP_DIR_MODES,
+    PPOCRV6_MODELS,
     SUPPORTED_OCR_ENGINES,
     YT_DLP_JS_RUNTIMES,
 )
@@ -269,6 +272,17 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
         help="Tesseract executable for --ocr. Default: tesseract",
     )
     parser.add_argument(
+        "--ppocrv6-model",
+        choices=PPOCRV6_MODELS,
+        default=DEFAULT_PPOCRV6_MODEL,
+        help="PP-OCRv6 model size for --ocr-engine ppocrv6. Default: tiny",
+    )
+    parser.add_argument(
+        "--ppocrv6-device",
+        default=DEFAULT_PPOCRV6_DEVICE,
+        help="PP-OCRv6 device. This project treats PP-OCRv6 as GPU-only. Default: gpu:0",
+    )
+    parser.add_argument(
         "--paddleocr-vl-device",
         default=DEFAULT_PADDLEOCR_VL_DEVICE,
         help="PaddleOCR-VL device. This project treats PaddleOCR-VL as GPU-only. Default: gpu",
@@ -429,6 +443,8 @@ def maybe_run_ocr(
             paddleocr_vl_server_url=args.paddleocr_vl_server_url,
             paddleocr_vl_api_model_name=args.paddleocr_vl_api_model_name,
             paddleocr_vl_api_key=args.paddleocr_vl_api_key,
+            ppocrv6_model=args.ppocrv6_model,
+            ppocrv6_device=args.ppocrv6_device,
             temp_dir=args.ocr_temp_dir,
         ),
     )

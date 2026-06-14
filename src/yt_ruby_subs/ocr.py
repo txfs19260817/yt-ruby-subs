@@ -15,8 +15,12 @@ from .constants import (
     DEFAULT_OCR_TEMP_DIR,
     DEFAULT_OCR_WIDTH_RATIO,
     DEFAULT_PADDLEOCR_VL_DEVICE,
+    DEFAULT_PPOCRV6_DEVICE,
+    DEFAULT_PPOCRV6_MODEL,
     OCR_TEMP_DIR_MODES,
     PADDLEOCR_VL_VERSION,
+    PPOCRV6_MODEL_NAMES,
+    PPOCRV6_MODELS,
     SUPPORTED_OCR_ENGINES,
     OcrTempDirMode,
 )
@@ -43,6 +47,8 @@ class OcrOptions:
     paddleocr_vl_server_url: str = ""
     paddleocr_vl_api_model_name: str = ""
     paddleocr_vl_api_key: str = ""
+    ppocrv6_model: str = DEFAULT_PPOCRV6_MODEL
+    ppocrv6_device: str = DEFAULT_PPOCRV6_DEVICE
     temp_dir: OcrTempDirMode = DEFAULT_OCR_TEMP_DIR
 
 
@@ -72,6 +78,17 @@ class PaddleOcrVlFrameRecognizer:
             for result in self.pipeline.predict(str(frame)):
                 result.save_to_markdown(save_path=output_dir)
             return normalize_ocr_text(read_markdown_output(output_dir))
+
+
+@dataclass(slots=True)
+class PpOcrV6FrameRecognizer:
+    pipeline: Any
+
+    def recognize(self, frame: Path) -> str:
+        texts: list[str] = []
+        for result in self.pipeline.predict(str(frame)):
+            texts.extend(extract_ppocrv6_texts(result))
+        return normalize_ocr_text("\n".join(texts))
 
 
 def run_hard_subtitle_ocr(
@@ -138,6 +155,19 @@ def validate_ocr_options(options: OcrOptions) -> None:
             "PaddleOCR-VL OCR is GPU-only in this project; use --paddleocr-vl-device gpu "
             "and install the paddleocr-vl extra with paddlepaddle-gpu"
         )
+    if (
+        options.engine == "ppocrv6"
+        and not options.ppocrv6_device.lower().startswith("gpu")
+    ):
+        raise CliError(
+            "PP-OCRv6 OCR is GPU-only in this project; use --ppocrv6-device gpu:0 "
+            "and install the ppocrv6 extra with paddlepaddle-gpu"
+        )
+    if options.engine == "ppocrv6" and options.ppocrv6_model not in PPOCRV6_MODELS:
+        supported = ", ".join(PPOCRV6_MODELS)
+        raise CliError(
+            f"unsupported --ppocrv6-model: {options.ppocrv6_model}; choose one of: {supported}"
+        )
     if options.temp_dir not in OCR_TEMP_DIR_MODES:
         supported = ", ".join(OCR_TEMP_DIR_MODES)
         raise CliError(
@@ -169,12 +199,14 @@ def build_frame_recognizer(options: OcrOptions) -> FrameRecognizer:
         return PaddleOcrVlFrameRecognizer(
             pipeline=create_paddleocr_vl_pipeline(options)
         )
+    if options.engine == "ppocrv6":
+        return PpOcrV6FrameRecognizer(pipeline=create_ppocrv6_pipeline(options))
 
     raise AssertionError(f"unvalidated OCR engine: {options.engine}")
 
 
 def release_frame_recognizer(recognizer: FrameRecognizer) -> None:
-    if isinstance(recognizer, PaddleOcrVlFrameRecognizer):
+    if isinstance(recognizer, PaddleOcrVlFrameRecognizer | PpOcrV6FrameRecognizer):
         recognizer.pipeline = None
     gc.collect()
     release_paddle_cuda_cache()
@@ -211,7 +243,7 @@ def load_tesseract_dependency() -> Any:
 
 
 def create_paddleocr_vl_pipeline(options: OcrOptions) -> Any:
-    ensure_paddle_gpu_available()
+    ensure_paddle_gpu_available("PaddleOCR-VL")
     try:
         from paddleocr import PaddleOCRVL  # type: ignore[import-not-found]
     except ImportError as exc:
@@ -236,14 +268,46 @@ def create_paddleocr_vl_pipeline(options: OcrOptions) -> Any:
     return PaddleOCRVL(**kwargs)
 
 
-def ensure_paddle_gpu_available() -> None:
+def create_ppocrv6_pipeline(options: OcrOptions) -> Any:
+    ensure_paddle_gpu_available("PP-OCRv6")
+    try:
+        from paddleocr import PaddleOCR  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise CliError(
+            "PP-OCRv6 dependencies are not installed; install this project with the "
+            'PP-OCRv6 extra, for example: uv pip install -e ".[ppocrv6]"'
+        ) from exc
+
+    try:
+        model_names = PPOCRV6_MODEL_NAMES[options.ppocrv6_model]
+    except KeyError as exc:
+        supported = ", ".join(PPOCRV6_MODELS)
+        raise CliError(
+            f"unsupported --ppocrv6-model: {options.ppocrv6_model}; choose one of: {supported}"
+        ) from exc
+
+    # Official OCR pipeline docs expose PaddleOCR, ocr_version, device, and
+    # text_detection_model_name/text_recognition_model_name.
+    # https://www.paddleocr.ai/main/version3.x/pipeline_usage/OCR.html
+    return PaddleOCR(
+        ocr_version="PP-OCRv6",
+        device=options.ppocrv6_device,
+        text_detection_model_name=model_names["detection"],
+        text_recognition_model_name=model_names["recognition"],
+        use_doc_orientation_classify=False,
+        use_doc_unwarping=False,
+        use_textline_orientation=False,
+    )
+
+
+def ensure_paddle_gpu_available(engine_name: str = "Paddle OCR") -> None:
     configure_nvidia_dll_path()
     try:
         import paddle  # type: ignore[import-not-found]
     except ImportError as exc:
         raise CliError(
-            "PaddleOCR-VL OCR is GPU-only in this project, but PaddlePaddle is not installed; "
-            "install with: uv sync --extra paddleocr-vl"
+            f"{engine_name} OCR is GPU-only in this project, but PaddlePaddle is not installed; "
+            "install with the matching Paddle OCR extra"
         ) from exc
 
     # Official Paddle APIs expose whether a wheel supports CUDA and how many GPUs are visible:
@@ -251,12 +315,12 @@ def ensure_paddle_gpu_available() -> None:
     # https://www.paddlepaddle.org.cn/documentation/docs/en/api/paddle/device/cuda/device_count_en.html
     if not paddle.device.is_compiled_with_cuda():
         raise CliError(
-            "PaddleOCR-VL OCR is GPU-only in this project, but the installed PaddlePaddle "
+            f"{engine_name} OCR is GPU-only in this project, but the installed PaddlePaddle "
             "wheel is CPU-only; install paddlepaddle-gpu from Paddle's CUDA package index"
         )
     if paddle.device.cuda.device_count() <= 0:
         raise CliError(
-            "PaddleOCR-VL OCR is GPU-only in this project, but PaddlePaddle cannot see a GPU"
+            f"{engine_name} OCR is GPU-only in this project, but PaddlePaddle cannot see a GPU"
         )
 
 
@@ -332,6 +396,7 @@ def write_ocr_reference(
         "# Hard subtitle OCR reference",
         f"# video: {video_file.name}",
         f"# engine: {options.engine}",
+        *build_ocr_engine_header(options),
         f"# language: {options.language}",
         f"# interval_seconds: {options.interval_seconds:g}",
         f"# bottom_ratio: {options.bottom_ratio:g}",
@@ -360,6 +425,56 @@ def write_ocr_reference(
         lines.append("# no OCR text detected")
 
     output_file.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
+def build_ocr_engine_header(options: OcrOptions) -> list[str]:
+    if options.engine == "ppocrv6":
+        return [
+            f"# ppocrv6_model: {options.ppocrv6_model}",
+            f"# ppocrv6_device: {options.ppocrv6_device}",
+        ]
+    return []
+
+
+def extract_ppocrv6_texts(result: Any) -> list[str]:
+    return collect_rec_texts(extract_ppocrv6_payload(result))
+
+
+def extract_ppocrv6_payload(result: Any) -> Any:
+    if isinstance(result, dict):
+        return result
+
+    json_value = getattr(result, "json", None)
+    if callable(json_value):
+        return json_value()
+    if json_value is not None:
+        return json_value
+
+    res_value = getattr(result, "res", None)
+    if res_value is not None:
+        return {"res": res_value}
+
+    return result
+
+
+def collect_rec_texts(value: Any) -> list[str]:
+    if isinstance(value, dict):
+        rec_texts = value.get("rec_texts")
+        if rec_texts is not None:
+            return [str(item) for item in rec_texts if str(item).strip()]
+
+        texts: list[str] = []
+        for item in value.values():
+            texts.extend(collect_rec_texts(item))
+        return texts
+
+    if isinstance(value, list | tuple):
+        texts: list[str] = []
+        for item in value:
+            texts.extend(collect_rec_texts(item))
+        return texts
+
+    return []
 
 
 def read_markdown_output(output_dir: Path) -> str:

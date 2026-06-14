@@ -116,6 +116,15 @@ uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr
 
 This path also needs `ffmpeg`, Tesseract, and Japanese Tesseract language data.
 
+PP-OCRv6:
+
+```bash
+uv sync --extra ppocrv6
+uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine ppocrv6
+```
+
+PP-OCRv6 is GPU-only in this project and defaults to the tiny model on `gpu:0`. Use `--ppocrv6-model small` or `--ppocrv6-model medium` when you want to trade speed for accuracy.
+
 PaddleOCR-VL 1.6:
 
 ```bash
@@ -123,7 +132,7 @@ uv sync --extra paddleocr-vl
 uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine paddleocr-vl
 ```
 
-PaddleOCR-VL is GPU-only in this project. The `paddleocr-vl` extra installs `paddlepaddle-gpu` from Paddle's CUDA 13.0 package index and the CLI defaults to `--paddleocr-vl-device gpu`. If your NVIDIA driver needs another CUDA wheel, change the `paddle-cu130` index in `pyproject.toml`.
+The Paddle OCR extras install `paddlepaddle-gpu` from Paddle's CUDA 13.0 package index. PaddleOCR-VL defaults to `--paddleocr-vl-device gpu`. If your NVIDIA driver needs another CUDA wheel, change the `paddle-cu130` index in `pyproject.toml`.
 
 For a VLM service backend:
 
