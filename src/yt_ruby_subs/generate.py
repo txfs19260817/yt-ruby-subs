@@ -320,19 +320,39 @@ def validate_vtt(text: str, label: str) -> tuple[list[dict[str, object]], list[s
     cues = parse_vtt_cues_from_text(text)
     if not cues:
         raise CliError(f"{label} parsed to zero subtitle cues")
+    return cues, build_vtt_warnings(cues, label)
 
+
+def build_vtt_warnings(cues: list[dict[str, object]], label: str) -> list[str]:
     warnings: list[str] = []
-    if empty := sum(1 for cue in cues if not str(cue["text"]).strip()):
-        warnings.append(f"{label}: {empty} empty cue(s)")
-    if bad := sum(
-        1 for cue in cues if not 0 <= float(cue["start"]) < float(cue["end"])
-    ):
-        warnings.append(f"{label}: {bad} cue(s) with non-positive or negative duration")
-    if disordered := sum(
-        1 for a, b in zip(cues, cues[1:]) if float(b["start"]) < float(a["start"])
-    ):
-        warnings.append(f"{label}: {disordered} cue(s) out of chronological order")
-    return cues, warnings
+    warning_counts = [
+        (count_empty_cues(cues), "empty cue(s)"),
+        (
+            count_bad_duration_cues(cues),
+            "cue(s) with non-positive or negative duration",
+        ),
+        (count_disordered_cues(cues), "cue(s) out of chronological order"),
+    ]
+    for count, message in warning_counts:
+        if count:
+            warnings.append(f"{label}: {count} {message}")
+    return warnings
+
+
+def count_empty_cues(cues: list[dict[str, object]]) -> int:
+    return sum(1 for cue in cues if not str(cue["text"]).strip())
+
+
+def count_bad_duration_cues(cues: list[dict[str, object]]) -> int:
+    return sum(1 for cue in cues if not 0 <= float(cue["start"]) < float(cue["end"]))
+
+
+def count_disordered_cues(cues: list[dict[str, object]]) -> int:
+    return sum(
+        1
+        for previous, current in zip(cues, cues[1:])
+        if float(current["start"]) < float(previous["start"])
+    )
 
 
 def strip_to_plain(text: str) -> str:
@@ -499,6 +519,14 @@ def parse_chat_api_payload(
     if isinstance(payload, dict) and all(key in payload for key in expected_keys):
         return payload
 
+    message = get_chat_api_message(payload)
+    candidate = parse_chat_api_message(message)
+    if not isinstance(candidate, dict):
+        raise CliError("chat API structured output is not a JSON object")
+    return candidate
+
+
+def get_chat_api_message(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise CliError("chat API returned JSON, but not an object payload")
 
@@ -509,7 +537,10 @@ def parse_chat_api_payload(
     message = choices[0].get("message")
     if not isinstance(message, dict):
         raise CliError("chat API response choice does not contain a message")
+    return message
 
+
+def parse_chat_api_message(message: dict[str, Any]) -> Any:
     parsed = message.get("parsed")
     if isinstance(parsed, dict):
         return parsed
@@ -523,9 +554,6 @@ def parse_chat_api_payload(
         candidate = json.loads(content_text)
     except json.JSONDecodeError:
         candidate = json.loads(extract_json_object(content_text))
-
-    if not isinstance(candidate, dict):
-        raise CliError("chat API structured output is not a JSON object")
     return candidate
 
 

@@ -15,7 +15,9 @@ TIMECODE_RE = re.compile(
 TEMPLATE_NAME = "player_template.html"
 
 
-def generate_player_page(*, video_file: Path | None, subtitle_file: Path, html_path: Path) -> PlayerResult:
+def generate_player_page(
+    *, video_file: Path | None, subtitle_file: Path, html_path: Path
+) -> PlayerResult:
     html_path.parent.mkdir(parents=True, exist_ok=True)
     video_rel = os.path.relpath(video_file, html_path.parent) if video_file else ""
     cues = parse_vtt_cues(subtitle_file)
@@ -60,8 +62,12 @@ def build_player_html(
     }
     # ``</`` is escaped so embedding the JSON inside <script> can never close the tag early.
     config_json = json.dumps(config, ensure_ascii=False).replace("</", "<\\/")
-    template = resources.files(__package__).joinpath(TEMPLATE_NAME).read_text(encoding="utf-8")
-    return template.replace("__PAGE_TITLE__", html.escape(page_title)).replace("__CONFIG_JSON__", config_json)
+    template = (
+        resources.files(__package__).joinpath(TEMPLATE_NAME).read_text(encoding="utf-8")
+    )
+    return template.replace("__PAGE_TITLE__", html.escape(page_title)).replace(
+        "__CONFIG_JSON__", config_json
+    )
 
 
 def parse_vtt_cues(subtitle_file: Path) -> list[dict[str, object]]:
@@ -69,31 +75,49 @@ def parse_vtt_cues(subtitle_file: Path) -> list[dict[str, object]]:
 
 
 def parse_vtt_cues_from_text(text: str) -> list[dict[str, object]]:
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    cues: list[dict[str, object]] = []
-    for block in re.split(r"\n\s*\n", normalized):
-        lines = [line for line in block.split("\n") if line.strip()]
-        if not lines or lines[0].startswith("WEBVTT"):
-            continue
-        if len(lines) >= 2 and "-->" not in lines[0] and "-->" in lines[1]:
-            timing_line, text_lines = lines[1], lines[2:]
-        elif "-->" in lines[0]:
-            timing_line, text_lines = lines[0], lines[1:]
-        else:
-            continue
+    normalized = normalize_vtt_newlines(text)
+    return [
+        cue
+        for block in split_vtt_blocks(normalized)
+        if (cue := parse_vtt_cue_block(block)) is not None
+    ]
 
-        match = TIMECODE_RE.match(timing_line)
-        if not match:
-            continue
 
-        cues.append(
-            {
-                "start": timestamp_to_seconds(match.group("start")),
-                "end": timestamp_to_seconds(match.group("end")),
-                "text": "\n".join(text_lines).strip(),
-            }
-        )
-    return cues
+def normalize_vtt_newlines(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def split_vtt_blocks(text: str) -> list[str]:
+    return re.split(r"\n\s*\n", text)
+
+
+def parse_vtt_cue_block(block: str) -> dict[str, object] | None:
+    lines = [line for line in block.split("\n") if line.strip()]
+    if not lines or lines[0].startswith("WEBVTT"):
+        return None
+
+    timing = extract_timing_line(lines)
+    if timing is None:
+        return None
+    timing_line, text_lines = timing
+
+    match = TIMECODE_RE.match(timing_line)
+    if not match:
+        return None
+
+    return {
+        "start": timestamp_to_seconds(match.group("start")),
+        "end": timestamp_to_seconds(match.group("end")),
+        "text": "\n".join(text_lines).strip(),
+    }
+
+
+def extract_timing_line(lines: list[str]) -> tuple[str, list[str]] | None:
+    if len(lines) >= 2 and "-->" not in lines[0] and "-->" in lines[1]:
+        return lines[1], lines[2:]
+    if "-->" in lines[0]:
+        return lines[0], lines[1:]
+    return None
 
 
 def timestamp_to_seconds(timestamp: str) -> float:
