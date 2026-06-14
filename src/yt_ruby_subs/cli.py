@@ -3,8 +3,20 @@ import logging
 import sys
 from pathlib import Path
 
-from .config import load_config, resolve_api_base_url, resolve_model
-from .constants import DEFAULT_YT_DLP_JS_RUNTIME, YT_DLP_JS_RUNTIMES
+from .constants import (
+    DEFAULT_API_BASE_URL,
+    DEFAULT_MODELS,
+    DEFAULT_OCR_BOTTOM_RATIO,
+    DEFAULT_OCR_CROP,
+    DEFAULT_OCR_FRAME_DEDUPE,
+    DEFAULT_OCR_TEMP_DIR,
+    DEFAULT_PADDLEOCR_VL_DEVICE,
+    DEFAULT_YT_DLP_JS_RUNTIME,
+    GENERATION_PROVIDERS,
+    OCR_TEMP_DIR_MODES,
+    SUPPORTED_OCR_ENGINES,
+    YT_DLP_JS_RUNTIMES,
+)
 from .download import (
     download_with_yt_dlp,
 )
@@ -12,10 +24,6 @@ from .errors import CliError
 from .generate import generate_outputs
 from .models import DownloadResult, GenerationResult, PlayerResult
 from .ocr import (
-    DEFAULT_OCR_FRAME_DEDUPE,
-    DEFAULT_OCR_BOTTOM_RATIO,
-    DEFAULT_OCR_CROP,
-    DEFAULT_PADDLEOCR_VL_DEVICE,
     OcrOptions,
     run_hard_subtitle_ocr,
 )
@@ -142,26 +150,20 @@ def add_generate_args(
         )
 
     parser.add_argument(
-        "--config",
-        type=Path,
-        default=None,
-        help="Config file to load. Default: ./defaults.json",
-    )
-    parser.add_argument(
         "--provider",
-        choices=("codex", "claude", "api"),
+        choices=GENERATION_PROVIDERS,
         default="codex",
         help="Backend to use for subtitle conversion. Default: codex",
     )
     parser.add_argument(
         "--model",
         default=None,
-        help="Model override passed to the selected backend. Overrides the config file.",
+        help="Model passed to the selected backend. Defaults: codex=gpt-5.5, claude=best, api=<empty>.",
     )
     parser.add_argument(
         "--api-base-url",
-        default=None,
-        help="OpenAI-compatible chat completions endpoint for --provider api. Overrides the config file.",
+        default=DEFAULT_API_BASE_URL,
+        help=f"OpenAI-compatible chat completions endpoint for --provider api. Default: {DEFAULT_API_BASE_URL}",
     )
     parser.add_argument(
         "--output-dir",
@@ -205,7 +207,7 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--ocr-engine",
-        choices=("tesseract", "paddleocr-vl"),
+        choices=SUPPORTED_OCR_ENGINES,
         default="tesseract",
         help="OCR engine for --ocr. Default: tesseract",
     )
@@ -227,7 +229,7 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
         "--ocr-bottom-ratio",
         type=float,
         default=DEFAULT_OCR_BOTTOM_RATIO,
-        help="Bottom video ratio to OCR when --ocr-crop is not set. Default: 0.2",
+        help=f"Bottom video ratio to OCR when --ocr-crop is not set. Default: {DEFAULT_OCR_BOTTOM_RATIO:g}",
     )
     parser.add_argument(
         "--no-ocr-frame-dedupe",
@@ -241,6 +243,12 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
         type=Path,
         default=None,
         help="OCR reference output file. Default: <video-stem>.hard-sub-ocr.txt",
+    )
+    parser.add_argument(
+        "--ocr-temp-dir",
+        choices=OCR_TEMP_DIR_MODES,
+        default=DEFAULT_OCR_TEMP_DIR,
+        help="Where to create OCR temporary frame directories. Use 'output' to create them next to the output video. Default: system",
     )
     parser.add_argument(
         "--ffmpeg-bin",
@@ -318,19 +326,16 @@ def handle_generate(args: argparse.Namespace) -> int:
     if not subtitle_file.is_file():
         raise CliError(f"subtitle file not found: {subtitle_file}")
 
-    config = load_config(args.config)
     generation = generate_from_args(
         args,
         subtitle_file=subtitle_file,
         default_output_dir=subtitle_file.parent,
-        config=config,
     )
     print_generation_summary(generation)
     return 0
 
 
 def handle_run(args: argparse.Namespace) -> int:
-    config = load_config(args.config)
     download_result = download_with_yt_dlp(
         url=args.url,
         lang=args.lang,
@@ -351,7 +356,6 @@ def handle_run(args: argparse.Namespace) -> int:
         args,
         subtitle_file=download_result.selected_subtitle,
         default_output_dir=download_result.work_dir,
-        config=config,
         ocr_reference_file=ocr_reference_file,
     )
     print_generation_summary(generation)
@@ -363,7 +367,6 @@ def generate_from_args(
     *,
     subtitle_file: Path,
     default_output_dir: Path,
-    config: dict[str, object],
     ocr_reference_file: Path | None = None,
 ) -> GenerationResult:
     output_dir = args.output_dir.resolve() if args.output_dir else default_output_dir
@@ -373,8 +376,8 @@ def generate_from_args(
     return generate_outputs(
         subtitle_file=subtitle_file,
         provider=args.provider,
-        model=resolve_model(args.provider, args.model, config),
-        api_base_url=resolve_api_base_url(args.api_base_url, config),
+        model=resolve_model(args.provider, args.model),
+        api_base_url=args.api_base_url.strip(),
         output_dir=output_dir,
         base_name=args.base_name,
         codex_bin=args.codex_bin,
@@ -417,10 +420,17 @@ def maybe_run_ocr(
             paddleocr_vl_server_url=args.paddleocr_vl_server_url,
             paddleocr_vl_api_model_name=args.paddleocr_vl_api_model_name,
             paddleocr_vl_api_key=args.paddleocr_vl_api_key,
+            temp_dir=args.ocr_temp_dir,
         ),
     )
     print(f"ocr_reference: {result}")
     return result
+
+
+def resolve_model(provider: str, model: str | None) -> str:
+    if model is not None:
+        return model.strip()
+    return DEFAULT_MODELS.get(provider, "")
 
 
 def resolve_ocr_reference(path: Path | None) -> Path | None:

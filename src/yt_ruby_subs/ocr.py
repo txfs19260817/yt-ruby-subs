@@ -8,17 +8,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
+from .constants import (
+    DEFAULT_OCR_BOTTOM_RATIO,
+    DEFAULT_OCR_FRAME_DEDUPE,
+    DEFAULT_OCR_TEMP_DIR,
+    DEFAULT_PADDLEOCR_VL_DEVICE,
+    OCR_TEMP_DIR_MODES,
+    PADDLEOCR_VL_VERSION,
+    SUPPORTED_OCR_ENGINES,
+    OcrTempDirMode,
+)
 from .errors import CliError
 from .process_utils import resolve_command, run_subprocess
 
-DEFAULT_OCR_BOTTOM_RATIO = 0.15
-DEFAULT_OCR_CROP = (
-    f"iw:ih*{DEFAULT_OCR_BOTTOM_RATIO:g}:0:ih*{1 - DEFAULT_OCR_BOTTOM_RATIO:g}"
-)
-DEFAULT_OCR_FRAME_DEDUPE = True
-DEFAULT_PADDLEOCR_VL_DEVICE = "gpu"
-PADDLEOCR_VL_VERSION = "v1.6"
-SUPPORTED_OCR_ENGINES = ("tesseract", "paddleocr-vl")
 _DLL_DIRECTORY_HANDLES: list[Any] = []
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,7 @@ class OcrOptions:
     paddleocr_vl_server_url: str = ""
     paddleocr_vl_api_model_name: str = ""
     paddleocr_vl_api_key: str = ""
+    temp_dir: OcrTempDirMode = DEFAULT_OCR_TEMP_DIR
 
 
 class FrameRecognizer(Protocol):
@@ -86,8 +89,13 @@ def run_hard_subtitle_ocr(
 
     try:
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory(prefix="yt-ruby-subs-ocr-") as temp_dir_str:
+        temp_parent = resolve_ocr_temp_parent(output_file, options)
+        with tempfile.TemporaryDirectory(
+            prefix="yt-ruby-subs-ocr-",
+            dir=temp_parent,
+        ) as temp_dir_str:
             temp_dir = Path(temp_dir_str)
+            logger.info("ocr_temp_dir: %s", temp_dir)
             frame_pattern = temp_dir / "frame_%06d.png"
             extract_ocr_frames(
                 ffmpeg=ffmpeg,
@@ -125,6 +133,19 @@ def validate_ocr_options(options: OcrOptions) -> None:
             "PaddleOCR-VL OCR is GPU-only in this project; use --paddleocr-vl-device gpu "
             "and install the paddleocr-vl extra with paddlepaddle-gpu"
         )
+    if options.temp_dir not in OCR_TEMP_DIR_MODES:
+        supported = ", ".join(OCR_TEMP_DIR_MODES)
+        raise CliError(
+            f"unsupported OCR temp dir mode: {options.temp_dir}; choose one of: {supported}"
+        )
+
+
+def resolve_ocr_temp_parent(output_file: Path, options: OcrOptions) -> Path | None:
+    if options.temp_dir == "system":
+        return None
+    if options.temp_dir == "output":
+        return output_file.parent
+    raise AssertionError(f"unvalidated OCR temp dir mode: {options.temp_dir}")
 
 
 def build_frame_recognizer(options: OcrOptions) -> FrameRecognizer:

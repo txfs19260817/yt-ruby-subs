@@ -1,5 +1,25 @@
 from typing import Any, Literal
 
+DEFAULT_API_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
+DEFAULT_MODELS = {
+    "codex": "gpt-5.5",
+    "claude": "best",
+    "api": "",
+}
+GENERATION_PROVIDERS = ("codex", "claude", "api")
+
+DEFAULT_OCR_BOTTOM_RATIO = 0.15
+DEFAULT_OCR_CROP = (
+    f"iw:ih*{DEFAULT_OCR_BOTTOM_RATIO:g}:0:ih*{1 - DEFAULT_OCR_BOTTOM_RATIO:g}"
+)
+DEFAULT_OCR_FRAME_DEDUPE = True
+DEFAULT_OCR_TEMP_DIR = "system"
+DEFAULT_PADDLEOCR_VL_DEVICE = "gpu"
+OCR_TEMP_DIR_MODES = ("system", "output")
+PADDLEOCR_VL_VERSION = "v1.6"
+SUPPORTED_OCR_ENGINES = ("tesseract", "paddleocr-vl")
+type OcrTempDirMode = Literal["system", "output"]
+
 SUBTITLE_EXTENSIONS = {".vtt", ".srt", ".ass", ".ssa", ".ttml", ".srv3", ".json3"}
 
 DEFAULT_YT_DLP_JS_RUNTIME = "node"

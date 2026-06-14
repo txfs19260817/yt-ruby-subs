@@ -28,13 +28,13 @@ $env:OPENROUTER_API_KEY = "your_openrouter_key"
 $env:OPENAI_API_KEY = "your_openai_key"
 ```
 
-The default API endpoint in `defaults.json` is OpenRouter:
+The default API endpoint is OpenRouter:
 
 ```text
 https://openrouter.ai/api/v1/chat/completions
 ```
 
-Override it with `--api-base-url` or a config file.
+Override it with `--api-base-url`.
 
 ## Quick start
 
@@ -103,8 +103,9 @@ uv run yt-ruby-subs player ".\downloads\example\video.webm" ".\downloads\example
 ## OCR reference
 
 If a video has hard Japanese subtitles, `run` can OCR the lower video area after download and pass the text to the AI correction step.
-By default it crops the bottom fifth of the video. Use `--ocr-bottom-ratio` for a different bottom region, or `--ocr-crop` for a full ffmpeg crop expression.
+By default it crops the bottom 15% of the video. Use `--ocr-bottom-ratio` for a different bottom region, or `--ocr-crop` for a full ffmpeg crop expression.
 OCR frame extraction also runs light ffmpeg frame deduplication by default. Use `--no-ocr-frame-dedupe` if it drops frames you want to inspect.
+Temporary OCR frame directories are created under the system temp directory by default. Use `--ocr-temp-dir output` to create them under the output work directory while the run is active.
 
 Tesseract:
 
@@ -171,34 +172,21 @@ Click a subtitle line to jump to that cue. The current line scrolls into view, a
 | `-` / `=` | Change playback speed from 0.5x to 1.5x |
 | `Alt+O` | Open the original video page |
 
-## Configuration
+## Backend Defaults
 
-Backend defaults live in `defaults.json` at the project root:
+Backend defaults are command-line defaults:
 
 - `codex`: `gpt-5.5`
 - `claude`: `best`
-- `api`: no model unless you pass `--model` or set one in the config file
+- `api`: no model unless you pass `--model`
+- API endpoint: `https://openrouter.ai/api/v1/chat/completions`
 
-Use `--config` with `generate` or `run` to load another config file:
+Override them with flags:
 
 ```bash
-uv run yt-ruby-subs run "https://example.com/video" --config ".\my-config.json"
+uv run yt-ruby-subs run "https://example.com/video" --provider codex --model gpt-5.5
+uv run yt-ruby-subs generate ".\downloads\example\video.ja.vtt" --provider api --api-base-url "https://openrouter.ai/api/v1/chat/completions"
 ```
-
-Config files can list only the keys you want to change:
-
-```json
-{
-  "models": {
-    "codex": "gpt-5.5"
-  }
-}
-```
-
-Model and endpoint precedence:
-
-- model: `--model` > config file
-- API endpoint: `--api-base-url` > config file
 
 ## Development
 

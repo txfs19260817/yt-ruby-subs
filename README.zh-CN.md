@@ -28,13 +28,13 @@ $env:OPENROUTER_API_KEY = "your_openrouter_key"
 $env:OPENAI_API_KEY = "your_openai_key"
 ```
 
-`defaults.json` 里的默认 API 地址是 OpenRouter:
+默认 API 地址是 OpenRouter:
 
 ```text
 https://openrouter.ai/api/v1/chat/completions
 ```
 
-可以用 `--api-base-url` 或配置文件改成其他 OpenAI 兼容接口。
+可以用 `--api-base-url` 改成其他 OpenAI 兼容接口。
 
 ## 快速开始
 
@@ -103,8 +103,9 @@ uv run yt-ruby-subs player ".\downloads\example\video.webm" ".\downloads\example
 ## OCR 参考文本
 
 如果视频自带日语硬字幕，`run` 可以在下载视频后 OCR 视频下方区域，并把识别文本交给 AI 修正字幕时参考。
-默认裁剪视频下方 1/5。需要调整时用 `--ocr-bottom-ratio`，需要完整 ffmpeg crop 表达式时用 `--ocr-crop`。
+默认裁剪视频下方 15%。需要调整时用 `--ocr-bottom-ratio`，需要完整 ffmpeg crop 表达式时用 `--ocr-crop`。
 OCR 抽帧默认还会用 ffmpeg 做轻量帧去重；如果误删了你想检查的帧，可以加 `--no-ocr-frame-dedupe` 关闭。
+OCR 临时帧目录默认创建在系统临时目录下。运行时如果想放到输出工作目录里，传 `--ocr-temp-dir output`。
 
 Tesseract:
 
@@ -171,34 +172,21 @@ uv run yt-ruby-subs generate ".\downloads\example\video.ja.vtt" --ocr-reference 
 | `-` / `=` | 调整速度，范围 0.5x 到 1.5x |
 | `Alt+O` | 打开原视频页面 |
 
-## 配置
+## 后端默认值
 
-后端默认值在项目根目录的 `defaults.json`:
+后端默认值来自命令行 flag:
 
 - `codex`: `gpt-5.5`
 - `claude`: `best`
-- `api`: 不指定模型，除非你传入 `--model` 或在配置文件里设置
+- `api`: 不指定模型，除非你传入 `--model`
+- API 地址: `https://openrouter.ai/api/v1/chat/completions`
 
-`generate` 和 `run` 可以用 `--config` 加载另一个配置文件:
+用 flag 覆盖:
 
 ```bash
-uv run yt-ruby-subs run "https://example.com/video" --config ".\my-config.json"
+uv run yt-ruby-subs run "https://example.com/video" --provider codex --model gpt-5.5
+uv run yt-ruby-subs generate ".\downloads\example\video.ja.vtt" --provider api --api-base-url "https://openrouter.ai/api/v1/chat/completions"
 ```
-
-配置文件可以只写需要覆盖的字段:
-
-```json
-{
-  "models": {
-    "codex": "gpt-5.5"
-  }
-}
-```
-
-模型和接口地址的优先级:
-
-- 模型: `--model` > 配置文件
-- API 地址: `--api-base-url` > 配置文件
 
 ## 开发
 

@@ -137,6 +137,56 @@ def test_run_hard_subtitle_ocr_supports_paddleocr_vl(
     assert created_options[0].paddleocr_vl_backend == "vllm-server"
 
 
+def test_run_hard_subtitle_ocr_can_place_temp_dir_under_output(
+    monkeypatch: Any,
+    tmp_path: Path,
+) -> None:
+    video = tmp_path / "clip.mp4"
+    video.write_text("video", encoding="utf-8")
+    output_dir = tmp_path / "output"
+    output = output_dir / "clip.hard-sub-ocr.txt"
+    frame_dirs: list[Path] = []
+
+    monkeypatch.setattr(ocr, "resolve_command", lambda raw, *, windows_preferred: raw)
+    monkeypatch.setattr(
+        ocr,
+        "build_frame_recognizer",
+        lambda options: ocr.TesseractFrameRecognizer(
+            pytesseract=SimpleNamespace(
+                pytesseract=SimpleNamespace(tesseract_cmd=""),
+                image_to_string=lambda path, *, lang: "字幕",
+            ),
+            language="jpn",
+        ),
+    )
+
+    def fake_run_subprocess(
+        command: list[str],
+        *,
+        cwd: Path,
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        frame_pattern = Path(command[-1])
+        frame_dirs.append(frame_pattern.parent)
+        assert frame_pattern.parent.parent == output_dir
+        frame_pattern.parent.mkdir(parents=True, exist_ok=True)
+        (frame_pattern.parent / "frame_000001.png").write_text(
+            "frame", encoding="utf-8"
+        )
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(ocr, "run_subprocess", fake_run_subprocess)
+
+    ocr.run_hard_subtitle_ocr(
+        video_file=video,
+        output_file=output,
+        options=ocr.OcrOptions(temp_dir="output"),
+    )
+
+    assert frame_dirs
+    assert output.is_file()
+
+
 def test_write_ocr_reference_skips_missing_frames(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,

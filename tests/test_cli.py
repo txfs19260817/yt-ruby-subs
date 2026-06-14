@@ -90,7 +90,7 @@ def test_handle_download_calls_downloader_and_prints_summary(
     assert "[selected]" in output
 
 
-def test_handle_generate_loads_config_and_prints_summary(
+def test_handle_generate_uses_flag_defaults_and_prints_summary(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -109,18 +109,12 @@ def test_handle_generate_loads_config_and_prints_summary(
             player_path=tmp_path / "clip.player.html",
         )
 
-    monkeypatch.setattr(
-        cli,
-        "load_config",
-        lambda path: {"models": {"codex": "config-model"}, "api_base_url": "api"},
-    )
     monkeypatch.setattr(cli, "generate_outputs", fake_generate_outputs)
     args = argparse.Namespace(
         subtitle_file=subtitle,
-        config=None,
         provider="codex",
         model=None,
-        api_base_url=None,
+        api_base_url="https://openrouter.ai/api/v1/chat/completions",
         output_dir=None,
         base_name="",
         codex_bin="codex",
@@ -131,7 +125,8 @@ def test_handle_generate_loads_config_and_prints_summary(
     assert cli.handle_generate(args) == 0
 
     assert captured["subtitle_file"] == subtitle.resolve()
-    assert captured["model"] == "config-model"
+    assert captured["model"] == "gpt-5.5"
+    assert captured["api_base_url"] == "https://openrouter.ai/api/v1/chat/completions"
     output = capsys.readouterr().out
     assert "provider: codex" in output
     assert "player:" in output
@@ -149,7 +144,6 @@ def test_handle_run_raises_when_no_subtitle_downloaded(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    monkeypatch.setattr(cli, "load_config", lambda path: {})
     monkeypatch.setattr(
         cli,
         "download_with_yt_dlp",
@@ -162,7 +156,6 @@ def test_handle_run_raises_when_no_subtitle_downloaded(
         ),
     )
     args = argparse.Namespace(
-        config=None,
         url="https://example.com/video",
         lang="ja",
         output_root=tmp_path,
@@ -188,7 +181,6 @@ def test_handle_run_generates_ocr_reference_before_generation(
     video.write_text("video", encoding="utf-8")
     captured: dict[str, object] = {}
 
-    monkeypatch.setattr(cli, "load_config", lambda path: {})
     monkeypatch.setattr(
         cli,
         "download_with_yt_dlp",
@@ -210,6 +202,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         assert 0.1 <= options.bottom_ratio <= 0.25
         assert options.crop == ""
         assert options.frame_dedupe is True
+        assert options.temp_dir == "output"
         assert options.paddleocr_vl_device == "gpu"
         assert options.paddleocr_vl_backend == "vllm-server"
         output_file.write_text("硬字幕OCR\n", encoding="utf-8")
@@ -229,7 +222,6 @@ def test_handle_run_generates_ocr_reference_before_generation(
     monkeypatch.setattr(cli, "generate_outputs", fake_generate_outputs)
 
     args = argparse.Namespace(
-        config=None,
         url="https://example.com/video",
         lang="ja",
         output_root=tmp_path,
@@ -246,6 +238,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         ocr_crop="",
         ocr_frame_dedupe=True,
         ocr_output=None,
+        ocr_temp_dir="output",
         ffmpeg_bin="ffmpeg",
         tesseract_bin="tesseract",
         paddleocr_vl_device="gpu",
@@ -255,7 +248,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         paddleocr_vl_api_key="",
         provider="codex",
         model=None,
-        api_base_url=None,
+        api_base_url="https://openrouter.ai/api/v1/chat/completions",
         output_dir=None,
         base_name="",
         codex_bin="codex",
@@ -288,6 +281,16 @@ def test_run_parser_defaults_js_runtime_to_node() -> None:
     args = cli.build_parser().parse_args(["run", "https://example.com/video"])
 
     assert args.yt_dlp_js_runtimes == "node"
+
+
+def test_generate_and_run_parser_default_model_and_api_flags() -> None:
+    parser = cli.build_parser()
+
+    generate_args = parser.parse_args(["generate", "video.ja.vtt"])
+    run_args = parser.parse_args(["run", "https://example.com/video"])
+
+    assert cli.resolve_model(generate_args.provider, generate_args.model) == "gpt-5.5"
+    assert run_args.api_base_url == "https://openrouter.ai/api/v1/chat/completions"
 
 
 def test_handle_player_generates_default_html(

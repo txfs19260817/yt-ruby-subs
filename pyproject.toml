@@ -46,7 +46,6 @@ build-backend = "hatchling.build"
 packages = ["src/yt_ruby_subs"]
 include = [
     "src/yt_ruby_subs/player_template.html",
-    "defaults.json",
 ]
 
 [dependency-groups]
