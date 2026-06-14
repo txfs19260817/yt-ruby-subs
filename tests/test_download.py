@@ -18,7 +18,9 @@ def test_download_with_yt_dlp_finalizes_directory_and_manifest(
 ) -> None:
     captured_command: list[str] = []
     monkeypatch.setattr(download, "datetime", FixedDatetime)
-    monkeypatch.setattr(download, "resolve_command", lambda raw, *, windows_preferred: "yt-dlp-bin")
+    monkeypatch.setattr(
+        download, "resolve_command", lambda raw, *, windows_preferred: "yt-dlp-bin"
+    )
 
     def fake_run_subprocess(command: list[str], *, cwd: Path, **kwargs: Any) -> None:
         captured_command.extend(command)
@@ -40,13 +42,18 @@ def test_download_with_yt_dlp_finalizes_directory_and_manifest(
         no_video=True,
         subtitle_format="vtt/srt/best",
         yt_dlp_bin="yt-dlp",
+        yt_dlp_js_runtimes="bun",
     )
 
     assert captured_command[0] == "yt-dlp-bin"
+    assert "--js-runtimes" in captured_command
+    assert captured_command[captured_command.index("--js-runtimes") + 1] == "bun"
     assert "--skip-download" in captured_command
     assert result.work_dir.name == "Bad Title 20260102-030405 - job name"
     assert result.selected_subtitle == result.work_dir / "Lesson.ja.vtt"
-    manifest = json.loads((result.work_dir / "download-manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (result.work_dir / "download-manifest.json").read_text(encoding="utf-8")
+    )
     assert manifest["url"] == "https://example.com/video"
     assert manifest["selected_subtitle"].endswith("Lesson.ja.vtt")
     assert manifest["created_at"] == "2026-01-02T03:04:05"
@@ -74,7 +81,10 @@ def test_choose_download_title_uses_json_title_then_fallbacks(tmp_path: Path) ->
     subtitle = tmp_path / "Fallback.ja.ruby.corrected.vtt"
     subtitle.write_text("", encoding="utf-8")
 
-    assert download.choose_download_title([bad_info, good_info], [video], subtitle) == "Config Title"
+    assert (
+        download.choose_download_title([bad_info, good_info], [video], subtitle)
+        == "Config Title"
+    )
     assert download.choose_download_title([bad_info], [video], subtitle) == "Video Name"
     assert download.choose_download_title([bad_info], [], subtitle) == "Fallback"
     assert download.choose_download_title([bad_info], [], None) == "download"
@@ -86,9 +96,11 @@ def test_output_directory_helpers_sanitize_and_avoid_collisions(tmp_path: Path) 
     current = tmp_path / "__tmp__"
     current.mkdir()
 
-    assert download.sanitize_dir_name(' Bad:/Name*... ') == "Bad Name"
+    assert download.sanitize_dir_name(" Bad:/Name*... ") == "Bad Name"
     assert (
-        download.build_output_dir_name(title="Bad:/Name*", timestamp="20260102-030405", job_name="")
+        download.build_output_dir_name(
+            title="Bad:/Name*", timestamp="20260102-030405", job_name=""
+        )
         == "Bad Name 20260102-030405"
     )
 

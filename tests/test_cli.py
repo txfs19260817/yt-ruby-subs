@@ -78,6 +78,7 @@ def test_handle_download_calls_downloader_and_prints_summary(
         no_video=True,
         subtitle_format="vtt",
         yt_dlp_bin="yt-dlp",
+        yt_dlp_js_runtimes="node",
     )
 
     assert cli.handle_download(args) == 0
@@ -169,6 +170,7 @@ def test_handle_run_raises_when_no_subtitle_downloaded(
         no_video=True,
         subtitle_format="vtt",
         yt_dlp_bin="yt-dlp",
+        yt_dlp_js_runtimes="node",
     )
 
     with pytest.raises(CliError, match="no subtitle file was downloaded"):
@@ -235,6 +237,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         no_video=False,
         subtitle_format="vtt",
         yt_dlp_bin="yt-dlp",
+        yt_dlp_js_runtimes="bun",
         ocr=True,
         ocr_engine="paddleocr-vl",
         ocr_lang="jpn",
@@ -266,6 +269,25 @@ def test_handle_run_generates_ocr_reference_before_generation(
     expected_ocr = tmp_path / "clip.hard-sub-ocr.txt"
     assert captured["ocr_reference_file"] == expected_ocr
     assert f"ocr_reference: {expected_ocr}" in capsys.readouterr().out
+
+
+def test_run_parser_accepts_js_runtime_choices() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "run",
+            "https://example.com/video",
+            "--yt-dlp-js-runtimes",
+            "bun",
+        ]
+    )
+
+    assert args.yt_dlp_js_runtimes == "bun"
+
+
+def test_run_parser_defaults_js_runtime_to_node() -> None:
+    args = cli.build_parser().parse_args(["run", "https://example.com/video"])
+
+    assert args.yt_dlp_js_runtimes == "node"
 
 
 def test_handle_player_generates_default_html(

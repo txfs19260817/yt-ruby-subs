@@ -3,7 +3,10 @@ import sys
 from pathlib import Path
 
 from .config import load_config, resolve_api_base_url, resolve_model
-from .download import download_with_yt_dlp
+from .constants import DEFAULT_YT_DLP_JS_RUNTIME, YT_DLP_JS_RUNTIMES
+from .download import (
+    download_with_yt_dlp,
+)
 from .errors import CliError
 from .generate import generate_outputs
 from .models import DownloadResult, GenerationResult, PlayerResult
@@ -113,6 +116,12 @@ def add_download_args(parser: argparse.ArgumentParser) -> None:
         "--yt-dlp-bin",
         default="yt-dlp",
         help="yt-dlp executable to use. Default: yt-dlp",
+    )
+    parser.add_argument(
+        "--yt-dlp-js-runtimes",
+        choices=YT_DLP_JS_RUNTIMES,
+        default=DEFAULT_YT_DLP_JS_RUNTIME,
+        help="JavaScript runtime passed to yt-dlp --js-runtimes. Default: node",
     )
 
 
@@ -292,6 +301,7 @@ def handle_download(args: argparse.Namespace) -> int:
         no_video=args.no_video,
         subtitle_format=args.subtitle_format,
         yt_dlp_bin=args.yt_dlp_bin,
+        yt_dlp_js_runtimes=args.yt_dlp_js_runtimes,
     )
     print_download_summary(result)
     return 0
@@ -323,6 +333,7 @@ def handle_run(args: argparse.Namespace) -> int:
         no_video=args.no_video,
         subtitle_format=args.subtitle_format,
         yt_dlp_bin=args.yt_dlp_bin,
+        yt_dlp_js_runtimes=args.yt_dlp_js_runtimes,
     )
     print_download_summary(download_result)
 

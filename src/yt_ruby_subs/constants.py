@@ -1,6 +1,10 @@
-from typing import Any
+from typing import Any, Literal
 
 SUBTITLE_EXTENSIONS = {".vtt", ".srt", ".ass", ".ssa", ".ttml", ".srv3", ".json3"}
+
+DEFAULT_YT_DLP_JS_RUNTIME = "node"
+YT_DLP_JS_RUNTIMES = ("deno", "node", "bun", "quickjs")
+type YtDlpJsRuntime = Literal["deno", "node", "bun", "quickjs"]
 
 VIDEO_EXTENSIONS = {
     ".mp4",

@@ -70,6 +70,12 @@ uv run yt-ruby-subs --help
 uv run yt-ruby-subs download "https://example.com/video" --lang ja
 ```
 
+下载 YouTube 时默认会给 yt-dlp 传 `--js-runtimes node`。如果要用 Bun:
+
+```bash
+uv run yt-ruby-subs download "https://example.com/video" --yt-dlp-js-runtimes bun
+```
+
 只下载字幕:
 
 ```bash

@@ -70,6 +70,12 @@ Download subtitles and video:
 uv run yt-ruby-subs download "https://example.com/video" --lang ja
 ```
 
+YouTube downloads pass `--js-runtimes node` to yt-dlp by default. To use Bun instead:
+
+```bash
+uv run yt-ruby-subs download "https://example.com/video" --yt-dlp-js-runtimes bun
+```
+
 Download subtitles only:
 
 ```bash

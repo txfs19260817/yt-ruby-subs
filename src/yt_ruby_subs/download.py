@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from .constants import SUBTITLE_EXTENSIONS, VIDEO_EXTENSIONS
+from .constants import SUBTITLE_EXTENSIONS, VIDEO_EXTENSIONS, YtDlpJsRuntime
 from .models import DownloadResult
 from .process_utils import resolve_command, run_subprocess
 
@@ -23,6 +23,7 @@ def download_with_yt_dlp(
     no_video: bool,
     subtitle_format: str,
     yt_dlp_bin: str,
+    yt_dlp_js_runtimes: YtDlpJsRuntime,
 ) -> DownloadResult:
     yt_dlp = resolve_command(yt_dlp_bin, windows_preferred=("yt-dlp.exe", "yt-dlp"))
     root = output_root.resolve()
@@ -50,6 +51,7 @@ def download_with_yt_dlp(
         "--output",
         "%(title).180B [%(id)s].%(ext)s",
     ]
+    command.extend(["--js-runtimes", yt_dlp_js_runtimes])
     if no_video:
         command.append("--skip-download")
 
@@ -132,7 +134,9 @@ def subtitle_lang_tokens(lang_expression: str) -> list[str]:
     ]
 
 
-def choose_download_title(info_files: list[Path], video_files: list[Path], selected_subtitle: Path | None) -> str:
+def choose_download_title(
+    info_files: list[Path], video_files: list[Path], selected_subtitle: Path | None
+) -> str:
     for info_path in info_files:
         try:
             data = json.loads(info_path.read_text(encoding="utf-8"))
@@ -155,8 +159,13 @@ def strip_download_stem(stem: str) -> str:
     return stripped.strip() or stem
 
 
-def finalize_download_dir(*, current_dir: Path, root: Path, title: str, timestamp: str, job_name: str) -> Path:
-    target_dir = unique_dir_path(root / build_output_dir_name(title=title, timestamp=timestamp, job_name=job_name))
+def finalize_download_dir(
+    *, current_dir: Path, root: Path, title: str, timestamp: str, job_name: str
+) -> Path:
+    target_dir = unique_dir_path(
+        root
+        / build_output_dir_name(title=title, timestamp=timestamp, job_name=job_name)
+    )
     if target_dir == current_dir:
         return current_dir
     current_dir.rename(target_dir)
