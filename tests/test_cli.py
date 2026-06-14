@@ -205,7 +205,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         options = kwargs["options"]
         assert isinstance(options, cli.OcrOptions)
         assert options.engine == "paddleocr-vl"
-        assert options.paddleocr_vl_device == "cpu"
+        assert options.paddleocr_vl_device == "gpu"
         assert options.paddleocr_vl_backend == "vllm-server"
         output_file.write_text("硬字幕OCR\n", encoding="utf-8")
         return output_file
@@ -240,7 +240,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         ocr_output=None,
         ffmpeg_bin="ffmpeg",
         tesseract_bin="tesseract",
-        paddleocr_vl_device="cpu",
+        paddleocr_vl_device="gpu",
         paddleocr_vl_backend="vllm-server",
         paddleocr_vl_server_url="http://localhost:8000/v1",
         paddleocr_vl_api_model_name="PaddlePaddle/PaddleOCR-VL-1.6",

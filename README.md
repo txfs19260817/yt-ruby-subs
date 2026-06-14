@@ -114,6 +114,8 @@ uv sync --extra paddleocr-vl
 uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine paddleocr-vl
 ```
 
+PaddleOCR-VL is GPU-only in this project. The `paddleocr-vl` extra installs `paddlepaddle-gpu` from Paddle's CUDA 13.0 package index and the CLI defaults to `--paddleocr-vl-device gpu`. If your NVIDIA driver needs another CUDA wheel, change the `paddle-cu130` index in `pyproject.toml`.
+
 For a VLM service backend:
 
 ```bash

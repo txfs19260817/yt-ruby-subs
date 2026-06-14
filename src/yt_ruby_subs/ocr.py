@@ -8,6 +8,7 @@ from .errors import CliError
 from .process_utils import resolve_command, run_subprocess
 
 DEFAULT_OCR_CROP = "iw:ih*0.35:0:ih*0.65"
+DEFAULT_PADDLEOCR_VL_DEVICE = "gpu"
 PADDLEOCR_VL_VERSION = "v1.6"
 SUPPORTED_OCR_ENGINES = ("tesseract", "paddleocr-vl")
 
@@ -20,7 +21,7 @@ class OcrOptions:
     crop: str = DEFAULT_OCR_CROP
     ffmpeg_bin: str = "ffmpeg"
     tesseract_bin: str = "tesseract"
-    paddleocr_vl_device: str = ""
+    paddleocr_vl_device: str = DEFAULT_PADDLEOCR_VL_DEVICE
     paddleocr_vl_backend: str = ""
     paddleocr_vl_server_url: str = ""
     paddleocr_vl_api_model_name: str = ""
@@ -99,6 +100,14 @@ def validate_ocr_options(options: OcrOptions) -> None:
         raise CliError(
             f"unsupported OCR engine: {options.engine}; choose one of: {supported}"
         )
+    if (
+        options.engine == "paddleocr-vl"
+        and not options.paddleocr_vl_device.lower().startswith("gpu")
+    ):
+        raise CliError(
+            "PaddleOCR-VL OCR is GPU-only in this project; use --paddleocr-vl-device gpu "
+            "and install the paddleocr-vl extra with paddlepaddle-gpu"
+        )
 
 
 def build_frame_recognizer(options: OcrOptions) -> FrameRecognizer:
@@ -133,6 +142,7 @@ def load_tesseract_dependency() -> Any:
 
 
 def create_paddleocr_vl_pipeline(options: OcrOptions) -> Any:
+    ensure_paddle_gpu_available()
     try:
         from paddleocr import PaddleOCRVL  # type: ignore[import-not-found]
     except ImportError as exc:
@@ -155,6 +165,29 @@ def create_paddleocr_vl_pipeline(options: OcrOptions) -> Any:
         }
     )
     return PaddleOCRVL(**kwargs)
+
+
+def ensure_paddle_gpu_available() -> None:
+    try:
+        import paddle  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise CliError(
+            "PaddleOCR-VL OCR is GPU-only in this project, but PaddlePaddle is not installed; "
+            "install with: uv sync --extra paddleocr-vl"
+        ) from exc
+
+    # Official Paddle APIs expose whether a wheel supports CUDA and how many GPUs are visible:
+    # https://www.paddlepaddle.org.cn/documentation/docs/en/api/paddle/device/is_compiled_with_cuda_en.html
+    # https://www.paddlepaddle.org.cn/documentation/docs/en/api/paddle/device/cuda/device_count_en.html
+    if not paddle.device.is_compiled_with_cuda():
+        raise CliError(
+            "PaddleOCR-VL OCR is GPU-only in this project, but the installed PaddlePaddle "
+            "wheel is CPU-only; install paddlepaddle-gpu from Paddle's CUDA package index"
+        )
+    if paddle.device.cuda.device_count() <= 0:
+        raise CliError(
+            "PaddleOCR-VL OCR is GPU-only in this project, but PaddlePaddle cannot see a GPU"
+        )
 
 
 def compact_options(values: dict[str, str]) -> dict[str, str]:

@@ -114,6 +114,8 @@ uv sync --extra paddleocr-vl
 uv run yt-ruby-subs run "https://example.com/video" --provider codex --ocr --ocr-engine paddleocr-vl
 ```
 
+本项目约定 PaddleOCR-VL 只走 GPU。`paddleocr-vl` extra 会从 Paddle 的 CUDA 13.0 包索引安装 `paddlepaddle-gpu`，CLI 默认 `--paddleocr-vl-device gpu`。如果你的 NVIDIA 驱动需要其他 CUDA wheel，修改 `pyproject.toml` 里的 `paddle-cu130` 索引。
+
 使用 VLM service 后端:
 
 ```bash

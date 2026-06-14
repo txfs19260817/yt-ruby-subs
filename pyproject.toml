@@ -16,7 +16,16 @@ ocr = [
 ]
 paddleocr-vl = [
     "paddleocr[doc-parser]>=3.6.0",
+    "paddlepaddle-gpu==3.3.0",
 ]
+
+[tool.uv.sources]
+paddlepaddle-gpu = { index = "paddle-cu130" }
+
+[[tool.uv.index]]
+name = "paddle-cu130"
+url = "https://www.paddlepaddle.org.cn/packages/stable/cu130/"
+explicit = true
 
 [project.scripts]
 yt-ruby-subs = "yt_ruby_subs:main"

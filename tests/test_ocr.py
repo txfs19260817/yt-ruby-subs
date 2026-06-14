@@ -3,7 +3,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from yt_ruby_subs import ocr
+from yt_ruby_subs.errors import CliError
 
 
 def test_run_hard_subtitle_ocr_extracts_frames_and_writes_text(
@@ -108,7 +111,7 @@ def test_run_hard_subtitle_ocr_supports_paddleocr_vl(
         output_file=output,
         options=ocr.OcrOptions(
             engine="paddleocr-vl",
-            paddleocr_vl_device="cpu",
+            paddleocr_vl_device="gpu",
             paddleocr_vl_backend="vllm-server",
             paddleocr_vl_server_url="http://localhost:8000/v1",
         ),
@@ -118,5 +121,12 @@ def test_run_hard_subtitle_ocr_supports_paddleocr_vl(
     assert result == output
     assert "# engine: paddleocr-vl" in text
     assert "波動拳" in text
-    assert created_options[0].paddleocr_vl_device == "cpu"
+    assert created_options[0].paddleocr_vl_device == "gpu"
     assert created_options[0].paddleocr_vl_backend == "vllm-server"
+
+
+def test_paddleocr_vl_rejects_cpu_device() -> None:
+    options = ocr.OcrOptions(engine="paddleocr-vl", paddleocr_vl_device="cpu")
+
+    with pytest.raises(CliError, match="GPU-only"):
+        ocr.validate_ocr_options(options)

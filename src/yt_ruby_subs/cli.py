@@ -7,7 +7,12 @@ from .download import download_with_yt_dlp
 from .errors import CliError
 from .generate import generate_outputs
 from .models import DownloadResult, GenerationResult, PlayerResult
-from .ocr import DEFAULT_OCR_CROP, OcrOptions, run_hard_subtitle_ocr
+from .ocr import (
+    DEFAULT_OCR_CROP,
+    DEFAULT_PADDLEOCR_VL_DEVICE,
+    OcrOptions,
+    run_hard_subtitle_ocr,
+)
 from .player import generate_player_page
 
 
@@ -219,8 +224,8 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--paddleocr-vl-device",
-        default="",
-        help='PaddleOCR-VL device override, for example "cpu" or "gpu". Default: auto',
+        default=DEFAULT_PADDLEOCR_VL_DEVICE,
+        help="PaddleOCR-VL device. This project treats PaddleOCR-VL as GPU-only. Default: gpu",
     )
     parser.add_argument(
         "--paddleocr-vl-backend",
