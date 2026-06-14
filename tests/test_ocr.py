@@ -64,11 +64,12 @@ def test_run_hard_subtitle_ocr_extracts_frames_and_writes_text(
     text = output.read_text(encoding="utf-8")
     assert "昇龍拳" in text
     assert "# bottom_ratio: 0.2" in text
-    assert "# crop: iw:ih*0.2:0:ih*0.8" in text
+    assert "# width_ratio: 0.8" in text
+    assert "# crop: iw*0.8:ih*0.2:iw*0.1:ih*0.8" in text
     assert "# frame_dedupe: true" in text
     assert commands[0][0] == "ffmpeg"
     assert any("fps=1/0.5" in part for part in commands[0])
-    assert any("crop=iw:ih*0.2:0:ih*0.8" in part for part in commands[0])
+    assert any("crop=iw*0.8:ih*0.2:iw*0.1:ih*0.8" in part for part in commands[0])
     assert any("mpdecimate" in part for part in commands[0])
     assert FakePytesseract.pytesseract.tesseract_cmd == "tesseract"
 
@@ -251,11 +252,11 @@ def test_release_frame_recognizer_clears_paddle_pipeline_and_cuda_cache(
     ]
 
 
-def test_build_bottom_crop_and_explicit_override() -> None:
-    assert ocr.build_bottom_crop(0.2) == "iw:ih*0.2:0:ih*0.8"
+def test_build_subtitle_crop_and_explicit_override() -> None:
+    assert ocr.build_subtitle_crop(0.2, 0.8) == "iw*0.8:ih*0.2:iw*0.1:ih*0.8"
     assert (
-        ocr.resolve_ocr_crop(ocr.OcrOptions(bottom_ratio=0.25))
-        == "iw:ih*0.25:0:ih*0.75"
+        ocr.resolve_ocr_crop(ocr.OcrOptions(bottom_ratio=0.25, width_ratio=0.5))
+        == "iw*0.5:ih*0.25:iw*0.25:ih*0.75"
     )
     assert (
         ocr.resolve_ocr_crop(ocr.OcrOptions(crop="iw:100:0:ih-100"))
@@ -267,7 +268,7 @@ def test_build_ocr_video_filters_deduplicates_frames_by_default() -> None:
     assert ocr.build_ocr_video_filters(
         ocr.OcrOptions(interval_seconds=2, bottom_ratio=0.2)
     ) == [
-        "crop=iw:ih*0.2:0:ih*0.8",
+        "crop=iw*0.8:ih*0.2:iw*0.1:ih*0.8",
         "fps=1/2",
         "mpdecimate",
     ]
@@ -275,16 +276,18 @@ def test_build_ocr_video_filters_deduplicates_frames_by_default() -> None:
 
 def test_build_ocr_video_filters_can_disable_frame_dedupe() -> None:
     assert ocr.build_ocr_video_filters(
-        ocr.OcrOptions(bottom_ratio=0.2, frame_dedupe=False)
+        ocr.OcrOptions(interval_seconds=1, bottom_ratio=0.2, frame_dedupe=False)
     ) == [
-        "crop=iw:ih*0.2:0:ih*0.8",
+        "crop=iw*0.8:ih*0.2:iw*0.1:ih*0.8",
         "fps=1/1",
     ]
 
 
-def test_build_bottom_crop_rejects_invalid_ratio() -> None:
+def test_build_subtitle_crop_rejects_invalid_ratios() -> None:
     with pytest.raises(CliError, match="ocr-bottom-ratio"):
-        ocr.build_bottom_crop(0)
+        ocr.build_subtitle_crop(0, 0.8)
+    with pytest.raises(CliError, match="ocr-width-ratio"):
+        ocr.build_subtitle_crop(0.2, 0)
 
 
 def test_find_nvidia_dll_directories(tmp_path: Path) -> None:

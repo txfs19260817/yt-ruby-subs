@@ -103,7 +103,7 @@ uv run yt-ruby-subs player ".\downloads\example\video.webm" ".\downloads\example
 ## OCR reference
 
 If a video has hard Japanese subtitles, `run` can OCR the lower video area after download and pass the text to the AI correction step.
-By default it crops the bottom 15% of the video. Use `--ocr-bottom-ratio` for a different bottom region, or `--ocr-crop` for a full ffmpeg crop expression.
+By default it crops the bottom 15% and centered 80% width of the video. Use `--ocr-bottom-ratio` or `--ocr-width-ratio` to adjust that region, or `--ocr-crop` for a full ffmpeg crop expression.
 OCR frame extraction also runs light ffmpeg frame deduplication by default. Use `--no-ocr-frame-dedupe` if it drops frames you want to inspect.
 Temporary OCR frame directories are created under the system temp directory by default. Use `--ocr-temp-dir output` to create them under the output work directory while the run is active.
 

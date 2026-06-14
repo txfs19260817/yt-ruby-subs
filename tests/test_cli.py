@@ -200,6 +200,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         assert isinstance(options, cli.OcrOptions)
         assert options.engine == "paddleocr-vl"
         assert 0.1 <= options.bottom_ratio <= 0.25
+        assert options.width_ratio == pytest.approx(0.8)
         assert options.crop == ""
         assert options.frame_dedupe is True
         assert options.temp_dir == "output"
@@ -235,6 +236,7 @@ def test_handle_run_generates_ocr_reference_before_generation(
         ocr_lang="jpn",
         ocr_interval=1.0,
         ocr_bottom_ratio=0.15,
+        ocr_width_ratio=0.8,
         ocr_crop="",
         ocr_frame_dedupe=True,
         ocr_output=None,
@@ -283,6 +285,19 @@ def test_run_parser_defaults_js_runtime_to_node() -> None:
     assert args.yt_dlp_js_runtimes == "node"
 
 
+def test_run_parser_accepts_ocr_width_ratio() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "run",
+            "https://example.com/video",
+            "--ocr-width-ratio",
+            "0.7",
+        ]
+    )
+
+    assert args.ocr_width_ratio == pytest.approx(0.7)
+
+
 def test_generate_and_run_parser_default_model_and_api_flags() -> None:
     parser = cli.build_parser()
 
@@ -291,6 +306,8 @@ def test_generate_and_run_parser_default_model_and_api_flags() -> None:
 
     assert cli.resolve_model(generate_args.provider, generate_args.model) == "gpt-5.5"
     assert run_args.api_base_url == "https://openrouter.ai/api/v1/chat/completions"
+    assert run_args.ocr_interval == pytest.approx(1.5)
+    assert run_args.ocr_width_ratio == pytest.approx(0.8)
 
 
 def test_handle_player_generates_default_html(

@@ -103,7 +103,7 @@ uv run yt-ruby-subs player ".\downloads\example\video.webm" ".\downloads\example
 ## OCR 参考文本
 
 如果视频自带日语硬字幕，`run` 可以在下载视频后 OCR 视频下方区域，并把识别文本交给 AI 修正字幕时参考。
-默认裁剪视频下方 15%。需要调整时用 `--ocr-bottom-ratio`，需要完整 ffmpeg crop 表达式时用 `--ocr-crop`。
+默认裁剪视频下方 15%、中间 80% 宽度。需要调整时用 `--ocr-bottom-ratio` 或 `--ocr-width-ratio`，需要完整 ffmpeg crop 表达式时用 `--ocr-crop`。
 OCR 抽帧默认还会用 ffmpeg 做轻量帧去重；如果误删了你想检查的帧，可以加 `--no-ocr-frame-dedupe` 关闭。
 OCR 临时帧目录默认创建在系统临时目录下。运行时如果想放到输出工作目录里，传 `--ocr-temp-dir output`。
 

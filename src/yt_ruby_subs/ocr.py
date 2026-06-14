@@ -11,7 +11,9 @@ from typing import Any, Protocol
 from .constants import (
     DEFAULT_OCR_BOTTOM_RATIO,
     DEFAULT_OCR_FRAME_DEDUPE,
+    DEFAULT_OCR_INTERVAL_SECONDS,
     DEFAULT_OCR_TEMP_DIR,
+    DEFAULT_OCR_WIDTH_RATIO,
     DEFAULT_PADDLEOCR_VL_DEVICE,
     OCR_TEMP_DIR_MODES,
     PADDLEOCR_VL_VERSION,
@@ -29,8 +31,9 @@ logger = logging.getLogger(__name__)
 class OcrOptions:
     engine: str = "tesseract"
     language: str = "jpn"
-    interval_seconds: float = 1.0
+    interval_seconds: float = DEFAULT_OCR_INTERVAL_SECONDS
     bottom_ratio: float = DEFAULT_OCR_BOTTOM_RATIO
+    width_ratio: float = DEFAULT_OCR_WIDTH_RATIO
     crop: str = ""
     frame_dedupe: bool = DEFAULT_OCR_FRAME_DEDUPE
     ffmpeg_bin: str = "ffmpeg"
@@ -79,6 +82,8 @@ def run_hard_subtitle_ocr(
         raise CliError("--ocr-interval must be greater than 0")
     if not 0 < options.bottom_ratio <= 1:
         raise CliError("--ocr-bottom-ratio must be greater than 0 and at most 1")
+    if not 0 < options.width_ratio <= 1:
+        raise CliError("--ocr-width-ratio must be greater than 0 and at most 1")
     if not video_file.is_file():
         raise CliError(f"video file not found for OCR: {video_file}")
 
@@ -330,6 +335,7 @@ def write_ocr_reference(
         f"# language: {options.language}",
         f"# interval_seconds: {options.interval_seconds:g}",
         f"# bottom_ratio: {options.bottom_ratio:g}",
+        f"# width_ratio: {options.width_ratio:g}",
         f"# crop: {resolve_ocr_crop(options)}",
         f"# frame_dedupe: {str(options.frame_dedupe).lower()}",
         "",
@@ -364,7 +370,9 @@ def read_markdown_output(output_dir: Path) -> str:
 
 
 def resolve_ocr_crop(options: OcrOptions) -> str:
-    return options.crop or build_bottom_crop(options.bottom_ratio)
+    return options.crop or build_subtitle_crop(
+        options.bottom_ratio, options.width_ratio
+    )
 
 
 def build_ocr_video_filters(options: OcrOptions) -> list[str]:
@@ -377,10 +385,14 @@ def build_ocr_video_filters(options: OcrOptions) -> list[str]:
     return filters
 
 
-def build_bottom_crop(ratio: float) -> str:
-    if not 0 < ratio <= 1:
+def build_subtitle_crop(bottom_ratio: float, width_ratio: float) -> str:
+    if not 0 < bottom_ratio <= 1:
         raise CliError("--ocr-bottom-ratio must be greater than 0 and at most 1")
-    return f"iw:ih*{ratio:g}:0:ih*{1 - ratio:g}"
+    if not 0 < width_ratio <= 1:
+        raise CliError("--ocr-width-ratio must be greater than 0 and at most 1")
+    x_ratio = (1 - width_ratio) / 2
+    y_ratio = 1 - bottom_ratio
+    return f"iw*{width_ratio:g}:ih*{bottom_ratio:g}:iw*{x_ratio:g}:ih*{y_ratio:g}"
 
 
 def normalize_ocr_text(text: str) -> str:

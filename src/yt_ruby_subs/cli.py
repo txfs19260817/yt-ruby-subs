@@ -9,7 +9,9 @@ from .constants import (
     DEFAULT_OCR_BOTTOM_RATIO,
     DEFAULT_OCR_CROP,
     DEFAULT_OCR_FRAME_DEDUPE,
+    DEFAULT_OCR_INTERVAL_SECONDS,
     DEFAULT_OCR_TEMP_DIR,
+    DEFAULT_OCR_WIDTH_RATIO,
     DEFAULT_PADDLEOCR_VL_DEVICE,
     DEFAULT_YT_DLP_JS_RUNTIME,
     GENERATION_PROVIDERS,
@@ -217,8 +219,8 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--ocr-interval",
         type=float,
-        default=1.0,
-        help="Seconds between OCR frames. Default: 1.0",
+        default=DEFAULT_OCR_INTERVAL_SECONDS,
+        help=f"Seconds between OCR frames. Default: {DEFAULT_OCR_INTERVAL_SECONDS:g}",
     )
     parser.add_argument(
         "--ocr-crop",
@@ -230,6 +232,12 @@ def add_ocr_args(parser: argparse.ArgumentParser) -> None:
         type=float,
         default=DEFAULT_OCR_BOTTOM_RATIO,
         help=f"Bottom video ratio to OCR when --ocr-crop is not set. Default: {DEFAULT_OCR_BOTTOM_RATIO:g}",
+    )
+    parser.add_argument(
+        "--ocr-width-ratio",
+        type=float,
+        default=DEFAULT_OCR_WIDTH_RATIO,
+        help=f"Centered video width ratio to OCR when --ocr-crop is not set. Default: {DEFAULT_OCR_WIDTH_RATIO:g}",
     )
     parser.add_argument(
         "--no-ocr-frame-dedupe",
@@ -411,6 +419,7 @@ def maybe_run_ocr(
             language=args.ocr_lang,
             interval_seconds=args.ocr_interval,
             bottom_ratio=args.ocr_bottom_ratio,
+            width_ratio=args.ocr_width_ratio,
             crop=args.ocr_crop,
             frame_dedupe=args.ocr_frame_dedupe,
             ffmpeg_bin=args.ffmpeg_bin,
