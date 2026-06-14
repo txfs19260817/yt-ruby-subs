@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from .player import generate_player_page
 
 def main(argv: list[str] | None = None) -> int:
     configure_standard_streams()
+    configure_logging()
     try:
         parser = build_parser()
         args = parser.parse_args(argv)
@@ -39,6 +41,10 @@ def configure_standard_streams() -> None:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
+
+
+def configure_logging() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def build_parser() -> argparse.ArgumentParser:

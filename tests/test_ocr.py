@@ -1,3 +1,4 @@
+import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -129,6 +130,40 @@ def test_run_hard_subtitle_ocr_supports_paddleocr_vl(
     assert "波動拳" in text
     assert created_options[0].paddleocr_vl_device == "gpu"
     assert created_options[0].paddleocr_vl_backend == "vllm-server"
+
+
+def test_write_ocr_reference_skips_missing_frames(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    video = tmp_path / "clip.mp4"
+    video.write_text("video", encoding="utf-8")
+    present_frame = tmp_path / "frame_000001.png"
+    missing_frame = tmp_path / "frame_000002.png"
+    output = tmp_path / "clip.hard-sub-ocr.txt"
+    present_frame.write_text("frame", encoding="utf-8")
+    recognized: list[Path] = []
+
+    class FakeRecognizer:
+        def recognize(self, frame: Path) -> str:
+            recognized.append(frame)
+            return "残ったフレーム"
+
+    caplog.set_level(logging.INFO, logger="yt_ruby_subs.ocr")
+
+    ocr.write_ocr_reference(
+        output_file=output,
+        video_file=video,
+        frames=[present_frame, missing_frame],
+        options=ocr.OcrOptions(),
+        recognizer=FakeRecognizer(),
+    )
+
+    assert recognized == [present_frame]
+    assert "残ったフレーム" in output.read_text(encoding="utf-8")
+    messages = [record.getMessage() for record in caplog.records]
+    assert "ocr_frame: 1/2 frame_000001.png" in messages
+    assert "OCR frame skipped because it no longer exists: frame_000002.png" in messages
 
 
 def test_paddleocr_vl_rejects_cpu_device() -> None:

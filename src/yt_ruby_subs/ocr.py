@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import sys
@@ -18,6 +19,7 @@ DEFAULT_PADDLEOCR_VL_DEVICE = "gpu"
 PADDLEOCR_VL_VERSION = "v1.6"
 SUPPORTED_OCR_ENGINES = ("tesseract", "paddleocr-vl")
 _DLL_DIRECTORY_HANDLES: list[Any] = []
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -282,7 +284,15 @@ def write_ocr_reference(
         "",
     ]
     previous_text = ""
-    for frame in frames:
+    total_frames = len(frames)
+    for index, frame in enumerate(frames, start=1):
+        logger.info("ocr_frame: %s/%s %s", index, total_frames, frame.name)
+        if not frame.exists():
+            logger.warning(
+                "OCR frame skipped because it no longer exists: %s",
+                frame.name,
+            )
+            continue
         text = recognizer.recognize(frame)
         if not text or text == previous_text:
             continue
