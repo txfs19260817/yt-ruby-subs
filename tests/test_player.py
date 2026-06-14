@@ -49,7 +49,10 @@ def test_find_source_url_prefers_manifest(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    assert player.find_source_url_near_subtitle(subtitle) == "https://www.youtube.com/watch?v=abc123"
+    assert (
+        player.find_source_url_near_subtitle(subtitle)
+        == "https://www.youtube.com/watch?v=abc123"
+    )
 
 
 def test_find_source_url_falls_back_to_info_json(tmp_path: Path) -> None:
@@ -88,7 +91,9 @@ def test_generate_player_page_writes_local_video_config(tmp_path: Path) -> None:
     )
     html_path = tmp_path / "nested" / "player.html"
 
-    result = player.generate_player_page(video_file=video, subtitle_file=subtitle, html_path=html_path)
+    result = player.generate_player_page(
+        video_file=video, subtitle_file=subtitle, html_path=html_path
+    )
 
     page = html_path.read_text(encoding="utf-8")
     assert result.html_path == html_path
@@ -97,5 +102,26 @@ def test_generate_player_page_writes_local_video_config(tmp_path: Path) -> None:
     assert "Ruby Subtitle Player" in page
 
 
+def test_player_template_includes_mask_mode_controls() -> None:
+    page = player.build_player_html(
+        page_title="Practice",
+        local_video_src="clip.mp4",
+        video_label="clip.mp4",
+        subtitle_label="clip.vtt",
+        cues=[{"start": 1.0, "end": 2.0, "text": "字幕"}],
+        source_url=None,
+        youtube_id=None,
+    )
+
+    assert 'data-act="mask"' in page
+    assert "mask-mode" in page
+    assert "body.mask-mode .player-shell iframe" in page
+    assert "body.mask-mode .player-shell video" in page
+    assert "KeyM" in page
+
+
 def test_path_to_href_quotes_spaces_and_preserves_url_safe_chars() -> None:
-    assert player.path_to_href(r"folder\clip 1 [draft].mp4") == "folder/clip%201%20[draft].mp4"
+    assert (
+        player.path_to_href(r"folder\clip 1 [draft].mp4")
+        == "folder/clip%201%20[draft].mp4"
+    )

@@ -70,8 +70,22 @@
       background: #000;
       border-radius: 1rem;
       overflow: hidden;
+      position: relative;
     }
     .player-shell iframe, .player-shell video { width: 100%; height: 100%; border: 0; display: block; }
+    body.mask-mode .player-shell iframe,
+    body.mask-mode .player-shell video { visibility: hidden; }
+    body.mask-mode .player-shell::after {
+      content: "遮挡中";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #050505;
+      color: var(--study-muted);
+      font-size: 1rem;
+      letter-spacing: 0;
+    }
 
     .toolbar {
       flex: 0 0 auto;
@@ -153,6 +167,7 @@
     }
     .cue-loop-badge { color: var(--study-word); }
     .cue-line { font-size: 1rem; line-height: 1.6; color: var(--study-text); }
+    .cue-line, .cue-text { position: relative; }
     .cue-text {
       font-size: clamp(1.15rem, 1.7vw, 1.45rem);
       line-height: 1.55;
@@ -163,6 +178,22 @@
     }
     ruby rt { font-size: 0.5em; color: #ffb27f; transition: opacity 0.12s; }
     body.hide-furigana ruby rt { opacity: 0; }
+    body.mask-mode .cue-line,
+    body.mask-mode #current-cue {
+      color: transparent;
+      text-shadow: none;
+    }
+    body.mask-mode .cue-line ruby rt,
+    body.mask-mode #current-cue ruby rt { opacity: 0; }
+    body.mask-mode .word-active { background: none; }
+    body.mask-mode .cue-line::after,
+    body.mask-mode #current-cue::after {
+      content: "字幕已遮挡";
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--study-muted);
+    }
     .word-active {
       background: linear-gradient(180deg, transparent 38%, var(--study-word) 38%, var(--study-word) 92%, transparent 92%);
       border-radius: 0.25rem;
@@ -198,6 +229,7 @@
           <button type="button" data-act="loop" title="循环本句 (L)">🔁 循环</button>
           <button type="button" data-act="autopause" title="每句结束自动暂停 (P)">⏸ 逐句</button>
           <button type="button" data-act="furigana" title="显示 / 隐藏假名 (F)">あ 假名</button>
+          <button type="button" data-act="mask" title="遮挡字幕和画面 (M)">遮挡</button>
           <span class="spacer"></span>
           <span class="speed-group" id="speed-group">
             <small>速度</small>
@@ -227,6 +259,7 @@
               <kbd>L</kbd> 循环 ·
               <kbd>P</kbd> 逐句暂停 ·
               <kbd>F</kbd> 假名 ·
+              <kbd>M</kbd> 遮挡 ·
               <kbd>-</kbd>/<kbd>=</kbd> 调速
             </p>
           </details>
@@ -266,6 +299,7 @@
     let autoPauseEnabled = false;
     let autoPausedCueIndex = -1;
     let playbackRate = 1;
+    let maskEnabled = false;
     let ytPlayer = null;
     let localVideo = null;
     let pollTimer = null;
@@ -484,6 +518,11 @@
       const hidden = document.body.classList.toggle('hide-furigana');
       toolbar.querySelector('[data-act="furigana"]').classList.toggle('on', hidden);
     }
+    function toggleMask() {
+      maskEnabled = !maskEnabled;
+      document.body.classList.toggle('mask-mode', maskEnabled);
+      toolbar.querySelector('[data-act="mask"]').classList.toggle('on', maskEnabled);
+    }
     function cycleSpeed(delta) {
       const rates = [0.5, 0.75, 1, 1.25, 1.5];
       const index = rates.indexOf(playbackRate);
@@ -502,6 +541,7 @@
         case 'loop': toggleLoop(); break;
         case 'autopause': toggleAutoPause(); break;
         case 'furigana': toggleFurigana(); break;
+        case 'mask': toggleMask(); break;
         case 'speed': setRate(Number(button.dataset.rate)); break;
       }
     });
@@ -517,6 +557,7 @@
         case 'KeyL': toggleLoop(); break;
         case 'KeyP': toggleAutoPause(); break;
         case 'KeyF': toggleFurigana(); break;
+        case 'KeyM': toggleMask(); break;
         case 'Minus': cycleSpeed(-1); break;
         case 'Equal': cycleSpeed(1); break;
       }
