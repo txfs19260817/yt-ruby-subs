@@ -4,5 +4,63 @@
     "claude": "best",
     "api": ""
   },
-  "api_base_url": "https://openrouter.ai/api/v1/chat/completions"
+  "api_base_url": "https://openrouter.ai/api/v1/chat/completions",
+  "cli_args": {
+    "download": {
+      "lang": "ja",
+      "output_root": "downloads",
+      "job_name": "",
+      "no_video": false,
+      "subtitle_format": "vtt/srt/best",
+      "yt_dlp_bin": "yt-dlp"
+    },
+    "generate": {
+      "config": null,
+      "provider": "codex",
+      "model": null,
+      "api_base_url": null,
+      "output_dir": null,
+      "base_name": "",
+      "codex_bin": "codex",
+      "claude_bin": "claude",
+      "prompt_extra": "",
+      "ocr_reference": null
+    },
+    "run": {
+      "lang": "ja",
+      "output_root": "downloads",
+      "job_name": "",
+      "no_video": false,
+      "subtitle_format": "vtt/srt/best",
+      "yt_dlp_bin": "yt-dlp",
+      "config": null,
+      "provider": "codex",
+      "model": null,
+      "api_base_url": null,
+      "output_dir": null,
+      "base_name": "",
+      "codex_bin": "codex",
+      "claude_bin": "claude",
+      "prompt_extra": "",
+      "ocr_reference": null,
+      "ocr": false,
+      "ocr_engine": "tesseract",
+      "ocr_lang": "jpn",
+      "ocr_interval": 1.0,
+      "ocr_crop": "",
+      "ocr_bottom_ratio": 0.17,
+      "ocr_frame_dedupe": true,
+      "ocr_output": null,
+      "ffmpeg_bin": "ffmpeg",
+      "tesseract_bin": "tesseract",
+      "paddleocr_vl_device": "gpu",
+      "paddleocr_vl_backend": "",
+      "paddleocr_vl_server_url": "",
+      "paddleocr_vl_api_model_name": "",
+      "paddleocr_vl_api_key": ""
+    },
+    "player": {
+      "output_html": null
+    }
+  }
 }

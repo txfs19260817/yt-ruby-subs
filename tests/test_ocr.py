@@ -2,6 +2,7 @@ import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -52,7 +53,11 @@ def test_run_hard_subtitle_ocr_extracts_frames_and_writes_text(
     result = ocr.run_hard_subtitle_ocr(
         video_file=video,
         output_file=output,
-        options=ocr.OcrOptions(language="jpn", interval_seconds=0.5),
+        options=ocr.OcrOptions(
+            language="jpn",
+            interval_seconds=0.5,
+            bottom_ratio=0.2,
+        ),
     )
 
     assert result == output
@@ -173,6 +178,29 @@ def test_paddleocr_vl_rejects_cpu_device() -> None:
         ocr.validate_ocr_options(options)
 
 
+def test_release_frame_recognizer_clears_paddle_pipeline_and_cuda_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    calls: list[str] = []
+    recognizer = ocr.PaddleOcrVlFrameRecognizer(pipeline=object())
+    fake_paddle = SimpleNamespace(
+        device=SimpleNamespace(
+            cuda=SimpleNamespace(empty_cache=lambda: calls.append("empty_cache"))
+        )
+    )
+    monkeypatch.setitem(ocr.sys.modules, "paddle", fake_paddle)
+    caplog.set_level(logging.INFO, logger="yt_ruby_subs.ocr")
+
+    ocr.release_frame_recognizer(recognizer)
+
+    assert recognizer.pipeline is None
+    assert calls == ["empty_cache"]
+    assert "paddle_cuda_cache_released" in [
+        record.getMessage() for record in caplog.records
+    ]
+
+
 def test_build_bottom_crop_and_explicit_override() -> None:
     assert ocr.build_bottom_crop(0.2) == "iw:ih*0.2:0:ih*0.8"
     assert (
@@ -186,7 +214,9 @@ def test_build_bottom_crop_and_explicit_override() -> None:
 
 
 def test_build_ocr_video_filters_deduplicates_frames_by_default() -> None:
-    assert ocr.build_ocr_video_filters(ocr.OcrOptions(interval_seconds=2)) == [
+    assert ocr.build_ocr_video_filters(
+        ocr.OcrOptions(interval_seconds=2, bottom_ratio=0.2)
+    ) == [
         "crop=iw:ih*0.2:0:ih*0.8",
         "fps=1/2",
         "mpdecimate",
@@ -194,7 +224,9 @@ def test_build_ocr_video_filters_deduplicates_frames_by_default() -> None:
 
 
 def test_build_ocr_video_filters_can_disable_frame_dedupe() -> None:
-    assert ocr.build_ocr_video_filters(ocr.OcrOptions(frame_dedupe=False)) == [
+    assert ocr.build_ocr_video_filters(
+        ocr.OcrOptions(bottom_ratio=0.2, frame_dedupe=False)
+    ) == [
         "crop=iw:ih*0.2:0:ih*0.8",
         "fps=1/1",
     ]

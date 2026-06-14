@@ -1,3 +1,4 @@
+import gc
 import logging
 import os
 import re
@@ -10,7 +11,7 @@ from typing import Any, Protocol
 from .errors import CliError
 from .process_utils import resolve_command, run_subprocess
 
-DEFAULT_OCR_BOTTOM_RATIO = 0.2
+DEFAULT_OCR_BOTTOM_RATIO = 0.17
 DEFAULT_OCR_CROP = (
     f"iw:ih*{DEFAULT_OCR_BOTTOM_RATIO:g}:0:ih*{1 - DEFAULT_OCR_BOTTOM_RATIO:g}"
 )
@@ -83,27 +84,30 @@ def run_hard_subtitle_ocr(
     )
     recognizer = build_frame_recognizer(options)
 
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="yt-ruby-subs-ocr-") as temp_dir_str:
-        temp_dir = Path(temp_dir_str)
-        frame_pattern = temp_dir / "frame_%06d.png"
-        extract_ocr_frames(
-            ffmpeg=ffmpeg,
-            video_file=video_file,
-            frame_pattern=frame_pattern,
-            options=options,
-        )
-        frames = sorted(temp_dir.glob("frame_*.png"))
-        if not frames:
-            raise CliError("OCR frame extraction produced no images")
+    try:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="yt-ruby-subs-ocr-") as temp_dir_str:
+            temp_dir = Path(temp_dir_str)
+            frame_pattern = temp_dir / "frame_%06d.png"
+            extract_ocr_frames(
+                ffmpeg=ffmpeg,
+                video_file=video_file,
+                frame_pattern=frame_pattern,
+                options=options,
+            )
+            frames = sorted(temp_dir.glob("frame_*.png"))
+            if not frames:
+                raise CliError("OCR frame extraction produced no images")
 
-        write_ocr_reference(
-            output_file=output_file,
-            video_file=video_file,
-            frames=frames,
-            options=options,
-            recognizer=recognizer,
-        )
+            write_ocr_reference(
+                output_file=output_file,
+                video_file=video_file,
+                frames=frames,
+                options=options,
+                recognizer=recognizer,
+            )
+    finally:
+        release_frame_recognizer(recognizer)
     return output_file
 
 
@@ -141,6 +145,32 @@ def build_frame_recognizer(options: OcrOptions) -> FrameRecognizer:
         )
 
     raise AssertionError(f"unvalidated OCR engine: {options.engine}")
+
+
+def release_frame_recognizer(recognizer: FrameRecognizer) -> None:
+    if isinstance(recognizer, PaddleOcrVlFrameRecognizer):
+        recognizer.pipeline = None
+    gc.collect()
+    release_paddle_cuda_cache()
+
+
+def release_paddle_cuda_cache() -> None:
+    paddle = sys.modules.get("paddle")
+    if paddle is None:
+        return
+
+    empty_cache = getattr(
+        getattr(getattr(paddle, "device", None), "cuda", None),
+        "empty_cache",
+        None,
+    )
+    if callable(empty_cache):
+        try:
+            empty_cache()
+        except Exception:
+            logger.debug("failed to release Paddle CUDA cache", exc_info=True)
+        else:
+            logger.info("paddle_cuda_cache_released")
 
 
 def load_tesseract_dependency() -> Any:
