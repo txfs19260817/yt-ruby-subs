@@ -45,7 +45,7 @@
       min-height: 0;
       overflow: hidden;
     }
-    .video-panel { display: flex; flex-direction: column; gap: 0.6rem; }
+    .video-panel { display: flex; flex-direction: column; gap: 0.4rem; }
     article h1, article h2, article p, article small, article div, article header { color: inherit; }
     .title-row {
       display: flex;
@@ -92,15 +92,15 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.3rem;
     }
     .toolbar button {
       width: auto;
       margin: 0;
-      padding: 0.4rem 0.7rem;
-      font-size: 0.85rem;
+      padding: 0.32rem 0.55rem;
+      font-size: 0.8rem;
       line-height: 1;
-      border-radius: 0.6rem;
+      border-radius: 0.5rem;
       border: 1px solid var(--study-border);
       background: var(--study-panel-2);
       color: var(--study-text);
@@ -113,33 +113,52 @@
       color: #ffd9bf;
     }
     .toolbar .spacer { flex: 1 1 auto; }
-    .speed-group { display: inline-flex; gap: 0.25rem; align-items: center; }
-    .speed-group small { color: var(--study-muted); margin-right: 0.15rem; }
-    .speed-group button { padding: 0.35rem 0.5rem; font-variant-numeric: tabular-nums; }
+    .speed-group { display: inline-flex; gap: 0.2rem; align-items: center; }
+    .speed-group small { color: var(--study-muted); margin-right: 0.1rem; }
+    .speed-group button { padding: 0.3rem 0.45rem; font-variant-numeric: tabular-nums; }
 
-    .now-playing { flex: 0 0 auto; }
-    .now-playing small { color: var(--study-muted); }
+    .now-playing {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      column-gap: 0.6rem;
+      row-gap: 0.1rem;
+      align-items: start;
+    }
+    .now-playing small {
+      color: var(--study-muted);
+      line-height: 1.1;
+    }
+    #current-time {
+      font-size: 0.78rem;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    #current-cue {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+    }
     .recording-panel {
       flex: 0 0 auto;
       border-top: 1px solid var(--study-border);
-      padding-top: 0.6rem;
+      padding-top: 0.4rem;
       display: flex;
       flex-direction: column;
-      gap: 0.45rem;
+      gap: 0.3rem;
     }
     .recording-panel small { color: var(--study-muted); }
     .recording-controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem;
+      gap: 0.3rem;
     }
     .recording-controls button {
       width: auto;
       margin: 0;
-      padding: 0.4rem 0.7rem;
-      font-size: 0.85rem;
+      padding: 0.32rem 0.55rem;
+      font-size: 0.8rem;
       line-height: 1;
-      border-radius: 0.6rem;
+      border-radius: 0.5rem;
       border: 1px solid var(--study-border);
       background: var(--study-panel-2);
       color: var(--study-text);
@@ -156,9 +175,10 @@
       cursor: not-allowed;
     }
     .recording-status {
-      min-height: 1.2em;
+      min-height: 1.1em;
       margin: 0;
-      font-size: 0.85rem;
+      font-size: 0.78rem;
+      line-height: 1.1;
     }
     .sidebar { display: flex; flex-direction: column; min-height: 0; }
     .sidebar header { margin-bottom: 0.6rem; }
@@ -210,10 +230,10 @@
     .cue-line { font-size: 1rem; line-height: 1.6; color: var(--study-text); }
     .cue-line, .cue-text { position: relative; }
     .cue-text {
-      font-size: clamp(1.15rem, 1.7vw, 1.45rem);
-      line-height: 1.55;
-      min-height: calc(1.55em * 2);
-      max-height: calc(1.55em * 2);
+      font-size: clamp(1rem, 1.35vw, 1.18rem);
+      line-height: 1.38;
+      min-height: calc(1.38em * 2);
+      max-height: calc(1.38em * 2);
       overflow: auto;
       padding-right: 0.2rem;
     }
