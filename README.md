@@ -175,6 +175,7 @@ Click a subtitle line to jump to that cue. The current line scrolls into view, a
 | `Space` | Play or pause |
 | `Left` / `Right` | Previous or next line |
 | `R` | Repeat the current line |
+| `S` | Shadowing mode: play the current line, pause for the same playback duration, then replay it until you move to another line |
 | `L` | Loop the current line |
 | `P` | Auto-pause after each line |
 | `F` | Show or hide furigana |

@@ -134,6 +134,13 @@
       line-height: 1.2;
       white-space: nowrap;
     }
+    .shadowing-status {
+      grid-column: 2;
+      margin: 0;
+      font-size: 0.78rem;
+      line-height: 1.1;
+      min-height: 1.1em;
+    }
     #current-cue {
       grid-column: 2;
       grid-row: 1 / span 2;
@@ -287,6 +294,7 @@
           <button type="button" data-act="play" title="播放 / 暂停 (Space)">⏯ 播放</button>
           <button type="button" data-act="next" title="下一句 (→)">下一句 ⏭</button>
           <button type="button" data-act="replay" title="重复本句 (R)">↺ 重复</button>
+          <button type="button" data-act="shadow" title="跟读：播放本句，停同等时长，再重复 (S)">跟读</button>
           <button type="button" data-act="loop" title="循环本句 (L)">🔁 循环</button>
           <button type="button" data-act="autopause" title="每句结束自动暂停 (P)">⏸ 逐句</button>
           <button type="button" data-act="furigana" title="显示 / 隐藏假名 (F)">あ 假名</button>
@@ -305,6 +313,7 @@
           <small>当前句</small>
           <div id="current-time" class="player-note">00:00:00 → 00:00:00</div>
           <div id="current-cue" class="cue-text">点击右侧任意字幕，从该句开始播放。</div>
+          <div id="shadowing-status" class="player-note shadowing-status" role="status">跟读关闭</div>
         </section>
         <section class="recording-panel" id="recording-panel">
           <small>跟读录音</small>
@@ -327,6 +336,7 @@
               <kbd>Space</kbd> 播放/暂停 ·
               <kbd>←</kbd>/<kbd>→</kbd> 上/下一句 ·
               <kbd>R</kbd> 重复本句 ·
+              <kbd>S</kbd> 跟读 ·
               <kbd>L</kbd> 循环 ·
               <kbd>P</kbd> 逐句暂停 ·
               <kbd>F</kbd> 假名 ·
@@ -354,6 +364,7 @@
     const sourceLinkEl = document.getElementById('source-link');
     const toolbar = document.getElementById('toolbar');
     const speedGroup = document.getElementById('speed-group');
+    const shadowingStatus = document.getElementById('shadowing-status');
     const recordingPanel = document.getElementById('recording-panel');
     const recordingStatus = document.getElementById('recording-status');
 
@@ -371,6 +382,11 @@
     let loopEnabled = false;
     let autoPauseEnabled = false;
     let autoPausedCueIndex = -1;
+    let shadowingEnabled = false;
+    let shadowingCueIndex = -1;
+    let shadowingPhase = 'idle';
+    let shadowingPauseTimer = null;
+    let shadowingCycle = 0;
     let playbackRate = 1;
     let maskEnabled = false;
     let ytPlayer = null;
@@ -393,6 +409,11 @@
       const m = Math.floor((total % 3600) / 60);
       const s = total % 60;
       return [h, m, s].map((value, index) => index === 0 ? String(value) : String(value).padStart(2, '0')).join(':');
+    }
+
+    function formatDuration(seconds) {
+      const safeSeconds = Math.max(0, seconds);
+      return `${safeSeconds < 10 ? safeSeconds.toFixed(1) : Math.round(safeSeconds)} 秒`;
     }
 
     function sanitizeCueMarkup(text, joinLines) {
@@ -514,6 +535,98 @@
       });
     }
 
+    function setShadowingStatus(text) {
+      shadowingStatus.textContent = text;
+    }
+
+    function updateShadowingButton() {
+      toolbar.querySelector('[data-act="shadow"]').classList.toggle('on', shadowingEnabled);
+    }
+
+    function clearShadowingPause() {
+      if (shadowingPauseTimer === null) return;
+      window.clearTimeout(shadowingPauseTimer);
+      shadowingPauseTimer = null;
+    }
+
+    function cuePlaybackSeconds(cue) {
+      return Math.max(0.15, cue.end - cue.start);
+    }
+
+    function cuePauseMilliseconds(cue) {
+      return Math.max(250, Math.round((cuePlaybackSeconds(cue) / Math.max(playbackRate, 0.25)) * 1000));
+    }
+
+    function currentSelectableCueIndex() {
+      if (selectedCueIndex >= 0) return selectedCueIndex;
+      if (activeCueIndex >= 0) return activeCueIndex;
+      return 0;
+    }
+
+    function stopShadowing({ updateStatus = true } = {}) {
+      clearShadowingPause();
+      shadowingCycle += 1;
+      shadowingEnabled = false;
+      shadowingCueIndex = -1;
+      shadowingPhase = 'idle';
+      updateShadowingButton();
+      if (updateStatus) setShadowingStatus('跟读关闭');
+    }
+
+    function setLoopEnabled(enabled) {
+      loopEnabled = enabled;
+      if (loopEnabled && selectedCueIndex < 0) selectedCueIndex = currentSelectableCueIndex();
+      toolbar.querySelector('[data-act="loop"]').classList.toggle('on', loopEnabled);
+      updateLoopBadges();
+    }
+
+    function setAutoPauseEnabled(enabled) {
+      autoPauseEnabled = enabled;
+      autoPausedCueIndex = -1;
+      toolbar.querySelector('[data-act="autopause"]').classList.toggle('on', autoPauseEnabled);
+    }
+
+    function startShadowingPlayback(index = currentSelectableCueIndex(), { seek = true } = {}) {
+      if (index < 0 || index >= cues.length) {
+        stopShadowing();
+        return;
+      }
+      if (loopEnabled) setLoopEnabled(false);
+      if (autoPauseEnabled) setAutoPauseEnabled(false);
+      clearShadowingPause();
+      shadowingCycle += 1;
+      shadowingEnabled = true;
+      shadowingCueIndex = index;
+      shadowingPhase = 'playing';
+      selectedCueIndex = index;
+      autoPausedCueIndex = -1;
+      const cue = cues[index];
+      currentTimeLabel.textContent = `${formatTime(cue.start)} → ${formatTime(cue.end)}`;
+      currentCue.innerHTML = renderTimedText(cue.text, cue.start + 0.001, true);
+      updateShadowingButton();
+      updateLoopBadges();
+      setShadowingStatus(`跟读播放中，随后暂停 ${formatDuration(cuePlaybackSeconds(cue))}`);
+      if (seek) {
+        seekTo(Math.max(0, cue.start + 0.001));
+      } else {
+        playMedia();
+      }
+    }
+
+    function scheduleShadowingPause(index) {
+      if (!shadowingEnabled || shadowingCueIndex !== index || shadowingPhase !== 'playing') return;
+      const cue = cues[index];
+      clearShadowingPause();
+      pauseMedia();
+      shadowingPhase = 'pausing';
+      setShadowingStatus(`跟读暂停 ${formatDuration(cuePlaybackSeconds(cue))}`);
+      const cycle = ++shadowingCycle;
+      shadowingPauseTimer = window.setTimeout(() => {
+        if (!shadowingEnabled || shadowingCueIndex !== index || shadowingCycle !== cycle) return;
+        startShadowingPlayback(index);
+      }, cuePauseMilliseconds(cue));
+    }
+
     function updateCurrentCueByTime() {
       const currentTime = getCurrentTime();
       const cueIndex = cues.findIndex(cue => currentTime >= cue.start && currentTime < cue.end);
@@ -542,6 +655,17 @@
     function enforcePlaybackAids() {
       if (!cues.length) return;
       const t = getCurrentTime();
+      if (shadowingEnabled && shadowingCueIndex >= 0) {
+        const cue = cues[shadowingCueIndex];
+        if (shadowingPhase === 'playing') {
+          if (t >= cue.end - 0.04 && t < cue.end + 0.8) {
+            scheduleShadowingPause(shadowingCueIndex);
+          } else if (t < cue.start - 0.3 || t > cue.end + 0.8) {
+            seekTo(cue.start + 0.001);
+          }
+        }
+        return;
+      }
       if (loopEnabled && selectedCueIndex >= 0) {
         const cue = cues[selectedCueIndex];
         if (t >= cue.end - 0.04 || t < cue.start - 0.3) seekTo(cue.start + 0.001);
@@ -570,6 +694,10 @@
       const cue = cues[index];
       currentTimeLabel.textContent = `${formatTime(cue.start)} → ${formatTime(cue.end)}`;
       currentCue.innerHTML = renderTimedText(cue.text, cue.start + 0.001, true);
+      if (shadowingEnabled) {
+        startShadowingPlayback(index, { seek });
+        return;
+      }
       if (seek) seekTo(Math.max(0, cue.start + 0.001));
       updateLoopBadges();
     }
@@ -583,20 +711,25 @@
       selectCue(index);
     }
     function playOriginalCue() {
+      if (shadowingEnabled) stopShadowing();
       recording.audio?.pause();
       replayCurrent();
       setRecordingStatus('播放原音');
     }
+    function toggleShadowing() {
+      if (shadowingEnabled) {
+        stopShadowing();
+        return;
+      }
+      startShadowingPlayback();
+    }
     function toggleLoop() {
-      loopEnabled = !loopEnabled;
-      if (loopEnabled && selectedCueIndex < 0) selectedCueIndex = activeCueIndex >= 0 ? activeCueIndex : 0;
-      toolbar.querySelector('[data-act="loop"]').classList.toggle('on', loopEnabled);
-      updateLoopBadges();
+      if (!loopEnabled && shadowingEnabled) stopShadowing();
+      setLoopEnabled(!loopEnabled);
     }
     function toggleAutoPause() {
-      autoPauseEnabled = !autoPauseEnabled;
-      autoPausedCueIndex = -1;
-      toolbar.querySelector('[data-act="autopause"]').classList.toggle('on', autoPauseEnabled);
+      if (!autoPauseEnabled && shadowingEnabled) stopShadowing();
+      setAutoPauseEnabled(!autoPauseEnabled);
     }
     function toggleFurigana() {
       const hidden = document.body.classList.toggle('hide-furigana');
@@ -619,6 +752,7 @@
       next: () => step(1),
       play: togglePlay,
       replay: replayCurrent,
+      shadow: toggleShadowing,
       loop: toggleLoop,
       autopause: toggleAutoPause,
       furigana: toggleFurigana,
@@ -735,6 +869,7 @@
       recordingActions[button?.dataset.recordingAct]?.();
     });
     window.addEventListener('beforeunload', () => {
+      clearShadowingPause();
       stopRecordingStream();
       if (recording.url) URL.revokeObjectURL(recording.url);
     });
@@ -744,6 +879,7 @@
       ['ArrowLeft', (event) => { event.preventDefault(); step(-1); }],
       ['ArrowRight', (event) => { event.preventDefault(); step(1); }],
       ['KeyR', replayCurrent],
+      ['KeyS', toggleShadowing],
       ['KeyL', toggleLoop],
       ['KeyP', toggleAutoPause],
       ['KeyF', toggleFurigana],

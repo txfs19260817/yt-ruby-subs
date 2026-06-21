@@ -175,6 +175,7 @@ uv run yt-ruby-subs generate ".\downloads\example\video.ja.vtt" --ocr-reference 
 | `Space` | 播放或暂停 |
 | `Left` / `Right` | 上一句或下一句 |
 | `R` | 重播当前句 |
+| `S` | 跟读模式：播放当前句，暂停同等播放时长，然后重复，直到切到另一句 |
 | `L` | 循环当前句 |
 | `P` | 每句结束后自动暂停 |
 | `F` | 显示或隐藏假名注音 |

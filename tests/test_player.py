@@ -139,6 +139,25 @@ def test_player_template_includes_recording_controls() -> None:
     assert "recording-status" in page
 
 
+def test_player_template_includes_shadowing_repeat_mode() -> None:
+    page = player.build_player_html(
+        page_title="Practice",
+        local_video_src="clip.mp4",
+        video_label="clip.mp4",
+        subtitle_label="clip.vtt",
+        cues=[{"start": 1.0, "end": 2.0, "text": "字幕"}],
+        source_url=None,
+        youtube_id=None,
+    )
+
+    assert 'data-act="shadow"' in page
+    assert "shadowing-status" in page
+    assert "scheduleShadowingPause" in page
+    assert "startShadowingPlayback" in page
+    assert "stopShadowing" in page
+    assert "KeyS" in page
+
+
 def test_path_to_href_quotes_spaces_and_preserves_url_safe_chars() -> None:
     assert (
         player.path_to_href(r"folder\clip 1 [draft].mp4")
