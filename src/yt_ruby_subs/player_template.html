@@ -6,6 +6,8 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>__PAGE_TITLE__</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/meyda@5.6.3/dist/web/meyda.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
   <style>
     :root {
       --study-accent: #ff8b4a;
@@ -187,6 +189,175 @@
       font-size: 0.78rem;
       line-height: 1.1;
     }
+    .assessment-warning {
+      margin: 0 0 0.75rem;
+      padding: 0.75rem 0.9rem;
+      border: 1px solid rgba(255, 209, 102, 0.32);
+      border-radius: 0.65rem;
+      background: rgba(255, 209, 102, 0.1);
+      color: #ffe7a8;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+    .assessment-panel {
+      flex: 0 0 auto;
+      border-top: 1px solid var(--study-border);
+      padding-top: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .assessment-panel h2 {
+      margin: 0;
+      font-size: 0.94rem;
+      line-height: 1.2;
+    }
+    .assessment-panel label {
+      margin: 0;
+      color: var(--study-muted);
+      font-size: 0.78rem;
+      line-height: 1.2;
+    }
+    .assessment-panel textarea,
+    .assessment-panel input {
+      margin: 0.18rem 0 0;
+      min-height: 0;
+      border-color: var(--study-border);
+      background: #11151b;
+      color: var(--study-text);
+      font-size: 0.84rem;
+    }
+    .assessment-panel textarea {
+      height: 4.5rem;
+      resize: vertical;
+    }
+    .assessment-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(7rem, 0.42fr);
+      gap: 0.45rem;
+    }
+    .assessment-controls,
+    .assessment-score-grid,
+    .assessment-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.35rem;
+    }
+    .assessment-controls button {
+      margin: 0;
+      padding: 0.34rem 0.45rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--study-border);
+      background: var(--study-panel-2);
+      color: var(--study-text);
+      font-size: 0.78rem;
+      line-height: 1.1;
+    }
+    .assessment-controls button:hover:not(:disabled) { border-color: var(--study-accent); }
+    .assessment-controls button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .volume-meter {
+      height: 0.55rem;
+      overflow: hidden;
+      border-radius: 999px;
+      border: 1px solid var(--study-border);
+      background: #0c0f14;
+    }
+    .volume-meter span {
+      display: block;
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #6ee7b7, #facc15, #fb923c);
+      transition: width 0.08s linear;
+    }
+    .score-card,
+    .metric-card {
+      min-width: 0;
+      padding: 0.45rem;
+      border: 1px solid var(--study-border);
+      border-radius: 0.55rem;
+      background: rgba(255, 255, 255, 0.035);
+    }
+    .score-card strong,
+    .metric-card strong {
+      display: block;
+      overflow: hidden;
+      color: var(--study-text);
+      font-size: 1.02rem;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .score-card small,
+    .metric-card small {
+      display: block;
+      color: var(--study-muted);
+      font-size: 0.7rem;
+      line-height: 1.1;
+    }
+    .assessment-text-output,
+    .assessment-token-output {
+      margin: 0;
+      padding: 0.5rem;
+      max-height: 5.5rem;
+      overflow: auto;
+      border: 1px solid var(--study-border);
+      border-radius: 0.55rem;
+      background: #0d1117;
+      color: var(--study-text);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .assessment-table-wrap {
+      max-height: 15rem;
+      overflow: auto;
+      border: 1px solid var(--study-border);
+      border-radius: 0.55rem;
+    }
+    .assessment-table {
+      width: 100%;
+      margin: 0;
+      border-collapse: collapse;
+      font-size: 0.74rem;
+    }
+    .assessment-table th,
+    .assessment-table td {
+      padding: 0.38rem 0.45rem;
+      border-bottom: 1px solid var(--study-border);
+      vertical-align: top;
+    }
+    .assessment-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #161b22;
+      color: var(--study-muted);
+      font-weight: 600;
+    }
+    .alignment-match { background: rgba(34, 197, 94, 0.16); }
+    .alignment-partial { background: rgba(250, 204, 21, 0.14); }
+    .alignment-substitute { background: rgba(251, 146, 60, 0.16); }
+    .alignment-delete { background: rgba(248, 113, 113, 0.18); }
+    .alignment-insert { background: rgba(96, 165, 250, 0.15); }
+    .assessment-debug {
+      color: var(--study-muted);
+      font-size: 0.76rem;
+    }
+    .assessment-debug summary { cursor: pointer; }
+    .assessment-debug pre {
+      max-height: 14rem;
+      overflow: auto;
+      padding: 0.55rem;
+      border: 1px solid var(--study-border);
+      border-radius: 0.55rem;
+      background: #0d1117;
+      color: var(--study-text);
+      font-size: 0.72rem;
+      white-space: pre-wrap;
+    }
     .sidebar { display: flex; flex-direction: column; min-height: 0; }
     .sidebar header { margin-bottom: 0.6rem; }
     .shortcuts { font-size: 0.78rem; color: var(--study-muted); margin: 0.35rem 0 0; }
@@ -274,12 +445,19 @@
       main.container-fluid { height: auto; overflow: visible; }
       .layout { grid-template-columns: 1fr; height: auto; }
       .player-shell { aspect-ratio: 16 / 9; flex: none; }
+      .assessment-grid,
+      .assessment-controls,
+      .assessment-score-grid,
+      .assessment-metric-grid { grid-template-columns: 1fr; }
       .cue-list { max-height: 45vh; }
     }
   </style>
 </head>
 <body>
   <main class="container-fluid">
+    <section class="assessment-warning" role="note">
+      免费版评分基于浏览器语音识别 + 日语文本/读音对齐 + 简单声学特征，只适合作为练习反馈，不等同于专业音素级 pronunciation assessment。Web Speech API 可能会把音频发送到浏览器厂商的识别服务。
+    </section>
     <div class="layout">
       <article class="video-panel">
         <header>
@@ -325,6 +503,81 @@
           </div>
           <div id="recording-status" class="player-note recording-status" role="status">未录音</div>
         </section>
+        <section class="assessment-panel" id="assessment-panel" aria-labelledby="assessment-title">
+          <h2 id="assessment-title">免费日语跟读评分</h2>
+          <label for="assessment-reference">
+            Reference Text
+            <textarea id="assessment-reference" autocomplete="off">私は毎日日本語の発音を練習しています。</textarea>
+          </label>
+          <div class="assessment-grid">
+            <label for="assessment-language">
+              Recognition Language
+              <input id="assessment-language" type="text" value="ja-JP" autocomplete="off">
+            </label>
+            <label for="assessment-max-seconds">
+              Max recording seconds
+              <input id="assessment-max-seconds" type="number" min="3" max="120" step="1" value="20">
+            </label>
+          </div>
+          <div class="assessment-controls">
+            <button type="button" data-assessment-act="start" disabled>Start Reading</button>
+            <button type="button" data-assessment-act="stop" disabled>Stop</button>
+            <button type="button" data-assessment-act="play-reference">Play Reference</button>
+          </div>
+          <div class="volume-meter" aria-label="实时音量"><span id="assessment-volume"></span></div>
+          <div id="assessment-status" class="player-note recording-status" role="status">kuromoji tokenizer 加载中...</div>
+          <div class="assessment-score-grid" aria-label="跟读评分">
+            <div class="score-card"><small>Overall Japanese Follow-reading Score</small><strong id="score-overall">--</strong></div>
+            <div class="score-card"><small>Token Accuracy</small><strong id="score-token">--</strong></div>
+            <div class="score-card"><small>Kana / Reading Similarity</small><strong id="score-kana">--</strong></div>
+            <div class="score-card"><small>Completeness</small><strong id="score-completeness">--</strong></div>
+            <div class="score-card"><small>Fluency</small><strong id="score-fluency">--</strong></div>
+            <div class="score-card"><small>Estimated Tokens Per Minute</small><strong id="score-tpm">--</strong></div>
+          </div>
+          <div class="assessment-metric-grid" aria-label="声学分析">
+            <div class="metric-card"><small>Long Pauses</small><strong id="metric-pauses">--</strong></div>
+            <div class="metric-card"><small>Silence Ratio</small><strong id="metric-silence">--</strong></div>
+            <div class="metric-card"><small>Average RMS</small><strong id="metric-rms">--</strong></div>
+          </div>
+          <label>
+            Recognized Text
+            <div id="assessment-recognized" class="assessment-text-output">--</div>
+          </label>
+          <label>
+            Live Transcript
+            <div id="assessment-live" class="assessment-text-output">--</div>
+          </label>
+          <label>
+            Reference Tokens / Readings
+            <div id="assessment-reference-tokens" class="assessment-token-output">--</div>
+          </label>
+          <label>
+            Recognized Tokens / Readings
+            <div id="assessment-recognized-tokens" class="assessment-token-output">--</div>
+          </label>
+          <div class="assessment-table-wrap">
+            <table class="assessment-table" aria-label="日语分词和读音对齐">
+              <thead>
+                <tr>
+                  <th>Ref Surface</th>
+                  <th>Ref Reading</th>
+                  <th>Recognized Surface</th>
+                  <th>Recognized Reading</th>
+                  <th>Operation</th>
+                  <th>Similarity</th>
+                  <th>Score</th>
+                </tr>
+              </thead>
+              <tbody id="assessment-alignment-body">
+                <tr><td colspan="7">まだ评分していません。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <details class="assessment-debug">
+            <summary>Raw debug JSON</summary>
+            <pre id="assessment-debug-json">{}</pre>
+          </details>
+        </section>
       </article>
       <article class="sidebar">
         <header>
@@ -367,6 +620,29 @@
     const shadowingStatus = document.getElementById('shadowing-status');
     const recordingPanel = document.getElementById('recording-panel');
     const recordingStatus = document.getElementById('recording-status');
+    const assessmentPanel = document.getElementById('assessment-panel');
+    const assessmentReference = document.getElementById('assessment-reference');
+    const assessmentLanguage = document.getElementById('assessment-language');
+    const assessmentMaxSeconds = document.getElementById('assessment-max-seconds');
+    const assessmentVolume = document.getElementById('assessment-volume');
+    const assessmentStatus = document.getElementById('assessment-status');
+    const assessmentRecognized = document.getElementById('assessment-recognized');
+    const assessmentLive = document.getElementById('assessment-live');
+    const assessmentReferenceTokens = document.getElementById('assessment-reference-tokens');
+    const assessmentRecognizedTokens = document.getElementById('assessment-recognized-tokens');
+    const assessmentAlignmentBody = document.getElementById('assessment-alignment-body');
+    const assessmentDebugJson = document.getElementById('assessment-debug-json');
+    const scoreEls = {
+      overall: document.getElementById('score-overall'),
+      token: document.getElementById('score-token'),
+      kana: document.getElementById('score-kana'),
+      completeness: document.getElementById('score-completeness'),
+      fluency: document.getElementById('score-fluency'),
+      tpm: document.getElementById('score-tpm'),
+      pauses: document.getElementById('metric-pauses'),
+      silence: document.getElementById('metric-silence'),
+      rms: document.getElementById('metric-rms'),
+    };
 
     titleEl.textContent = pageTitle;
     labelsEl.textContent = `视频: ${videoLabel} | 字幕: ${subtitleLabel}`;
@@ -402,6 +678,27 @@
       url: '',
       active: false,
     };
+    const assessment = {
+      tokenizer: null,
+      recognition: null,
+      stream: null,
+      audioContext: null,
+      meydaAnalyzer: null,
+      frames: [],
+      alternatives: [],
+      finalParts: [],
+      finalTranscript: '',
+      liveTranscript: '',
+      timeoutId: null,
+      startTime: 0,
+      endTime: 0,
+      active: false,
+      finishing: false,
+      error: '',
+    };
+    const DEFAULT_ASSESSMENT_REFERENCE = '私は毎日日本語の発音を練習しています。';
+    const KUROMOJI_DIC_PATH = 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/';
+    let lastAutoAssessmentReference = DEFAULT_ASSESSMENT_REFERENCE;
 
     function formatTime(seconds) {
       const total = Math.max(0, Math.floor(seconds));
@@ -432,6 +729,642 @@
 
     function plainText(text) {
       return text.replace(/<rt>.*?<\/rt>/g, '').replace(/<[^>]+>/g, '').replace(/\n/g, ' ').trim();
+    }
+
+    function clamp(min, value, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function formatPercent(value) {
+      return `${Math.round(clamp(0, value, 100))}`;
+    }
+
+    function formatDecimal(value, digits = 2) {
+      return Number.isFinite(value) ? value.toFixed(digits) : '--';
+    }
+
+    function setAssessmentStatus(text) {
+      assessmentStatus.textContent = text;
+    }
+
+    function assessmentButton(action) {
+      return assessmentPanel.querySelector(`[data-assessment-act="${action}"]`);
+    }
+
+    function updateAssessmentButtons() {
+      assessmentButton('start').disabled = assessment.active || !assessment.tokenizer;
+      assessmentButton('stop').disabled = !assessment.active;
+    }
+
+    function setAssessmentReferenceFromCue(index, { force = false } = {}) {
+      if (index < 0 || index >= cues.length || assessment.active) return;
+      const cueText = plainText(cues[index].text);
+      if (!cueText) return;
+      const current = assessmentReference.value.trim();
+      const canAutoReplace = force || !current || current === lastAutoAssessmentReference;
+      if (!canAutoReplace) return;
+      assessmentReference.value = cueText;
+      lastAutoAssessmentReference = cueText;
+    }
+
+    function resetAssessmentDisplay() {
+      assessmentVolume.style.width = '0%';
+      for (const key of ['overall', 'token', 'kana', 'completeness', 'fluency', 'tpm', 'pauses', 'silence', 'rms']) {
+        scoreEls[key].textContent = '--';
+      }
+      assessmentRecognized.textContent = '--';
+      assessmentLive.textContent = '--';
+      assessmentReferenceTokens.textContent = '--';
+      assessmentRecognizedTokens.textContent = '--';
+      assessmentAlignmentBody.innerHTML = '<tr><td colspan="7">まだ评分していません。</td></tr>';
+      assessmentDebugJson.textContent = '{}';
+    }
+
+    function toKatakana(text) {
+      return Array.from(text || '', char => {
+        const code = char.charCodeAt(0);
+        return code >= 0x3041 && code <= 0x3096 ? String.fromCharCode(code + 0x60) : char;
+      }).join('');
+    }
+
+    function normalizeJapaneseText(text) {
+      return String(text || '')
+        .normalize('NFKC')
+        .trim()
+        .replace(/[、。！？!?,.「」『』（）()\[\]［］【】・]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+    }
+
+    function normalizeReadingText(text) {
+      return toKatakana(normalizeJapaneseText(text))
+        .replace(/\s+/g, '')
+        .replace(/[、。！？!?,.「」『』（）()\[\]［］【】・]/g, '');
+    }
+
+    function createFallbackToken(surface) {
+      const normalized = normalizeReadingText(surface);
+      return {
+        surface,
+        reading: normalized || surface,
+        pronunciation: normalized || surface,
+        pos: 'unknown',
+        basicForm: surface,
+      };
+    }
+
+    function normalizeToken(token) {
+      const surface = token.surface_form || '';
+      return {
+        surface,
+        reading: normalizeReadingText(token.reading || surface),
+        pronunciation: normalizeReadingText(token.pronunciation || token.reading || surface),
+        pos: token.pos || '',
+        basicForm: token.basic_form || surface,
+      };
+    }
+
+    function tokenizeJapanese(text) {
+      if (!assessment.tokenizer) return [];
+      const normalized = normalizeJapaneseText(text);
+      if (!normalized) return [];
+      const tokens = [];
+      for (const token of assessment.tokenizer.tokenize(normalized)) {
+        const surface = token.surface_form || '';
+        if (!normalizeReadingText(surface)) continue;
+        if (token.word_type === 'UNKNOWN' && Array.from(surface).length > 1) {
+          tokens.push(...Array.from(surface).map(createFallbackToken));
+        } else {
+          tokens.push(normalizeToken(token));
+        }
+      }
+      return tokens;
+    }
+
+    function tokenKey(token) {
+      return token?.pronunciation || token?.reading || normalizeReadingText(token?.surface || '');
+    }
+
+    function editDistance(left, right) {
+      const a = Array.from(left || '');
+      const b = Array.from(right || '');
+      const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+      for (let i = 1; i <= a.length; i += 1) {
+        const current = [i];
+        for (let j = 1; j <= b.length; j += 1) {
+          current[j] = a[i - 1] === b[j - 1]
+            ? previous[j - 1]
+            : Math.min(previous[j - 1], previous[j], current[j - 1]) + 1;
+        }
+        previous.splice(0, previous.length, ...current);
+      }
+      return previous[b.length] || 0;
+    }
+
+    function editSimilarity(left, right) {
+      const a = Array.from(left || '');
+      const b = Array.from(right || '');
+      const length = Math.max(a.length, b.length);
+      if (!length) return 1;
+      return clamp(0, 1 - editDistance(left, right) / length, 1);
+    }
+
+    function tokenSimilarity(refToken, hypToken) {
+      if (!refToken || !hypToken) return 0;
+      const refPron = tokenKey(refToken);
+      const hypPron = tokenKey(hypToken);
+      if (refPron && hypPron && refPron === hypPron) return 1;
+      const pronunciationSimilarity = editSimilarity(refPron, hypPron);
+      if (pronunciationSimilarity > 0.75) return pronunciationSimilarity;
+      if (refToken.surface === hypToken.surface) return 0.9;
+      return editSimilarity(normalizeReadingText(refToken.surface), normalizeReadingText(hypToken.surface));
+    }
+
+    function operationFromSimilarity(similarity) {
+      if (similarity >= 0.999) return 'match';
+      if (similarity > 0.75) return 'partial';
+      return 'substitute';
+    }
+
+    function rowScore(operation, similarity) {
+      if (operation === 'match') return 100;
+      if (operation === 'partial') return clamp(60, 60 + ((similarity - 0.75) / 0.25) * 25, 85);
+      if (operation === 'substitute') return clamp(30, 30 + similarity * 25, 55);
+      return 0;
+    }
+
+    function makeAlignmentRow(refToken, hypToken, forcedOperation = '') {
+      const similarity = refToken && hypToken ? tokenSimilarity(refToken, hypToken) : 0;
+      const operation = forcedOperation || operationFromSimilarity(similarity);
+      return {
+        refSurface: refToken?.surface || '',
+        refReading: tokenKey(refToken),
+        hypSurface: hypToken?.surface || '',
+        hypReading: tokenKey(hypToken),
+        operation,
+        similarity,
+        score: rowScore(operation, similarity),
+      };
+    }
+
+    function substitutionCost(similarity) {
+      const operation = operationFromSimilarity(similarity);
+      if (operation === 'match') return 0;
+      if (operation === 'partial') return 0.35;
+      return 0.8 - similarity * 0.25;
+    }
+
+    function buildTokenAlignment(referenceTokens, hypothesisTokens) {
+      const rows = Array.from({ length: referenceTokens.length + 1 }, () => []);
+      rows[0][0] = { cost: 0, prev: null };
+      for (let i = 1; i <= referenceTokens.length; i += 1) {
+        rows[i][0] = { cost: rows[i - 1][0].cost + 1, prev: 'delete' };
+      }
+      for (let j = 1; j <= hypothesisTokens.length; j += 1) {
+        rows[0][j] = { cost: rows[0][j - 1].cost + 1, prev: 'insert' };
+      }
+      for (let i = 1; i <= referenceTokens.length; i += 1) {
+        for (let j = 1; j <= hypothesisTokens.length; j += 1) {
+          const similarity = tokenSimilarity(referenceTokens[i - 1], hypothesisTokens[j - 1]);
+          const candidates = [
+            { cost: rows[i - 1][j - 1].cost + substitutionCost(similarity), prev: 'diagonal' },
+            { cost: rows[i - 1][j].cost + 1, prev: 'delete' },
+            { cost: rows[i][j - 1].cost + 1, prev: 'insert' },
+          ];
+          rows[i][j] = candidates.reduce((best, candidate) => candidate.cost < best.cost ? candidate : best);
+        }
+      }
+
+      const alignment = [];
+      let i = referenceTokens.length;
+      let j = hypothesisTokens.length;
+      while (i > 0 || j > 0) {
+        const prev = rows[i][j].prev;
+        if (prev === 'diagonal') {
+          alignment.push(makeAlignmentRow(referenceTokens[i - 1], hypothesisTokens[j - 1]));
+          i -= 1;
+          j -= 1;
+        } else if (prev === 'delete') {
+          alignment.push(makeAlignmentRow(referenceTokens[i - 1], null, 'delete'));
+          i -= 1;
+        } else {
+          alignment.push(makeAlignmentRow(null, hypothesisTokens[j - 1], 'insert'));
+          j -= 1;
+        }
+      }
+      return alignment.reverse();
+    }
+
+    function median(values) {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const middle = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    function percentile(values, ratio) {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      return sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor((sorted.length - 1) * ratio)))];
+    }
+
+    function average(values) {
+      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+    }
+
+    function standardDeviation(values) {
+      if (!values.length) return 0;
+      const mean = average(values);
+      return Math.sqrt(average(values.map(value => (value - mean) ** 2)));
+    }
+
+    function buildAudioMetrics(frames, totalDurationSeconds, recognizedTokens) {
+      const totalDuration = Math.max(0.001, totalDurationSeconds);
+      const rmsValues = frames.map(frame => frame.rms).filter(Number.isFinite);
+      const earlyRms = frames.filter(frame => frame.timestamp <= 0.5).map(frame => frame.rms).filter(Number.isFinite);
+      const noiseSource = earlyRms.length >= 3 ? earlyRms : rmsValues;
+      const floorBase = earlyRms.length >= 3 ? median(noiseSource) : percentile(noiseSource, 0.2);
+      const noiseFloor = Math.max(0.01, floorBase * 2.5);
+      const frameDuration = frames.length ? totalDuration / frames.length : totalDuration;
+      let speakingFrames = 0;
+      let longPauseCount = 0;
+      let silenceRun = 0;
+      for (const frame of frames) {
+        const silent = !(frame.rms > noiseFloor);
+        if (silent) {
+          silenceRun += frameDuration;
+        } else {
+          if (silenceRun > 0.6) longPauseCount += 1;
+          silenceRun = 0;
+          speakingFrames += 1;
+        }
+      }
+      if (silenceRun > 0.6) longPauseCount += 1;
+      const speakingDurationSeconds = speakingFrames * frameDuration;
+      const silenceRatio = clamp(0, 1 - speakingDurationSeconds / totalDuration, 1);
+      const averageRms = average(rmsValues);
+      const rmsStd = standardDeviation(rmsValues);
+      const recognizedPronunciationLength = recognizedTokens.map(tokenKey).join('').length;
+      const estimatedMoraOrTokenRate = recognizedPronunciationLength / totalDuration;
+      const estimatedTokensPerMinute = recognizedTokens.length / totalDuration * 60;
+      const targetJapaneseTokensPerMinute = 120;
+      const speedScore = 100 - Math.min(60, Math.abs(estimatedTokensPerMinute - targetJapaneseTokensPerMinute) / targetJapaneseTokensPerMinute * 100);
+      const pauseScore = 100 - Math.min(60, longPauseCount * 12 + silenceRatio * 50);
+      const volumeScore = 100 - Math.min(50, rmsStd / Math.max(0.001, averageRms) * 30);
+      const fluencyScore = clamp(0, 0.45 * speedScore + 0.35 * pauseScore + 0.20 * volumeScore, 100);
+      return {
+        totalDurationSeconds: totalDuration,
+        speakingDurationSeconds,
+        silenceRatio,
+        longPauseCount,
+        averageRms,
+        rmsStd,
+        noiseFloor,
+        estimatedMoraOrTokenRate,
+        estimatedTokensPerMinute,
+        speedScore,
+        pauseScore,
+        volumeScore,
+        fluencyScore,
+      };
+    }
+
+    function calculateAssessmentScores(referenceTokens, recognizedTokens, alignment, audioMetrics) {
+      const counts = {
+        matches: alignment.filter(row => row.operation === 'match').length,
+        partials: alignment.filter(row => row.operation === 'partial').length,
+        substitutions: alignment.filter(row => row.operation === 'substitute').length,
+        deletions: alignment.filter(row => row.operation === 'delete').length,
+        insertions: alignment.filter(row => row.operation === 'insert').length,
+      };
+      const refLen = Math.max(1, referenceTokens.length);
+      const tokenAccuracyScore = 100 * Math.max(0, (
+        counts.matches + 0.7 * counts.partials + 0.4 * counts.substitutions
+      ) / refLen - 0.25 * counts.insertions / refLen);
+      const completenessScore = 100 * Math.max(0, 1 - counts.deletions / refLen);
+      const extraTokenPenalty = Math.min(30, counts.insertions / refLen * 100);
+      const refPronString = referenceTokens.map(tokenKey).join('');
+      const hypPronString = recognizedTokens.map(tokenKey).join('');
+      const kanaSimilarityScore = editSimilarity(refPronString, hypPronString) * 100;
+      const fluencyScore = audioMetrics.fluencyScore;
+      const finalScore = clamp(0,
+        0.45 * tokenAccuracyScore
+          + 0.25 * kanaSimilarityScore
+          + 0.15 * completenessScore
+          + 0.15 * fluencyScore
+          - extraTokenPenalty * 0.25,
+        100,
+      );
+      return {
+        ...counts,
+        refLen: referenceTokens.length,
+        tokenAccuracyScore,
+        completenessScore,
+        extraTokenPenalty,
+        kanaSimilarityScore,
+        fluencyScore,
+        finalScore,
+      };
+    }
+
+    function formatTokenList(tokens) {
+      if (!tokens.length) return '--';
+      return tokens.map(token => `${token.surface} / ${tokenKey(token)} / ${token.pos}`).join('\n');
+    }
+
+    function appendAlignmentCell(row, text) {
+      const cell = document.createElement('td');
+      cell.textContent = text;
+      row.appendChild(cell);
+    }
+
+    function renderAlignmentTable(alignment) {
+      assessmentAlignmentBody.textContent = '';
+      if (!alignment.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.textContent = '没有可显示的对齐结果。';
+        row.appendChild(cell);
+        assessmentAlignmentBody.appendChild(row);
+        return;
+      }
+      for (const item of alignment) {
+        const row = document.createElement('tr');
+        row.className = `alignment-${item.operation}`;
+        appendAlignmentCell(row, item.refSurface);
+        appendAlignmentCell(row, item.refReading);
+        appendAlignmentCell(row, item.hypSurface);
+        appendAlignmentCell(row, item.hypReading);
+        appendAlignmentCell(row, item.operation);
+        appendAlignmentCell(row, item.similarity.toFixed(2));
+        appendAlignmentCell(row, Math.round(item.score));
+        assessmentAlignmentBody.appendChild(row);
+      }
+    }
+
+    function browserInfo() {
+      return {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        speechRecognition: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
+        mediaDevices: Boolean(navigator.mediaDevices?.getUserMedia),
+        audioContext: Boolean(window.AudioContext || window.webkitAudioContext),
+        meyda: Boolean(window.Meyda),
+        speechSynthesis: Boolean(window.speechSynthesis),
+      };
+    }
+
+    function renderAssessmentResults(debugObject) {
+      const { recognizedText, referenceTokens, recognizedTokens, alignment, audioMetrics, scores } = debugObject;
+      scoreEls.overall.textContent = formatPercent(scores.finalScore);
+      scoreEls.token.textContent = formatPercent(scores.tokenAccuracyScore);
+      scoreEls.kana.textContent = formatPercent(scores.kanaSimilarityScore);
+      scoreEls.completeness.textContent = formatPercent(scores.completenessScore);
+      scoreEls.fluency.textContent = formatPercent(scores.fluencyScore);
+      scoreEls.tpm.textContent = formatDecimal(audioMetrics.estimatedTokensPerMinute, 1);
+      scoreEls.pauses.textContent = String(audioMetrics.longPauseCount);
+      scoreEls.silence.textContent = `${Math.round(audioMetrics.silenceRatio * 100)}%`;
+      scoreEls.rms.textContent = formatDecimal(audioMetrics.averageRms, 3);
+      assessmentRecognized.textContent = recognizedText || '没有识别到日语语音，请靠近麦克风、降低背景噪音，或换 Chrome/Safari 测试。';
+      assessmentLive.textContent = assessment.liveTranscript || '--';
+      assessmentReferenceTokens.textContent = formatTokenList(referenceTokens);
+      assessmentRecognizedTokens.textContent = formatTokenList(recognizedTokens);
+      renderAlignmentTable(alignment);
+      assessmentDebugJson.textContent = JSON.stringify(debugObject, null, 2);
+    }
+
+    function stopAssessmentResources() {
+      if (assessment.timeoutId !== null) {
+        window.clearTimeout(assessment.timeoutId);
+        assessment.timeoutId = null;
+      }
+      assessment.meydaAnalyzer?.stop();
+      assessment.meydaAnalyzer = null;
+      if (assessment.stream) {
+        for (const track of assessment.stream.getTracks()) {
+          track.stop();
+        }
+        assessment.stream = null;
+      }
+      if (assessment.audioContext) {
+        assessment.audioContext.close().catch(() => {});
+        assessment.audioContext = null;
+      }
+      assessmentVolume.style.width = '0%';
+    }
+
+    function finishAssessment() {
+      if (assessment.finishing) return;
+      assessment.finishing = true;
+      assessment.endTime = performance.now();
+      const wasActive = assessment.active;
+      assessment.active = false;
+      stopAssessmentResources();
+      updateAssessmentButtons();
+      const referenceText = assessmentReference.value.trim();
+      const recognizedText = (assessment.finalTranscript || assessment.liveTranscript).trim();
+      try {
+        const referenceTokens = tokenizeJapanese(referenceText);
+        const recognizedTokens = recognizedText ? tokenizeJapanese(recognizedText) : [];
+        const alignment = buildTokenAlignment(referenceTokens, recognizedTokens);
+        const totalDurationSeconds = Math.max(0.001, (assessment.endTime - assessment.startTime) / 1000);
+        const audioMetrics = buildAudioMetrics(assessment.frames, totalDurationSeconds, recognizedTokens);
+        const scores = calculateAssessmentScores(referenceTokens, recognizedTokens, alignment, audioMetrics);
+        const debugObject = {
+          referenceText,
+          recognizedText,
+          alternatives: assessment.alternatives,
+          referenceTokens,
+          recognizedTokens,
+          alignment,
+          audioMetrics,
+          scores,
+          browserInfo: browserInfo(),
+        };
+        renderAssessmentResults(debugObject);
+        if (!recognizedText) {
+          setAssessmentStatus('没有识别到日语语音，请靠近麦克风、降低背景噪音，或换 Chrome/Safari 测试。');
+        } else if (assessment.error) {
+          setAssessmentStatus(`识别结束，但出现错误: ${assessment.error}`);
+        } else if (wasActive) {
+          setAssessmentStatus('评分完成');
+        }
+      } catch (error) {
+        setAssessmentStatus(`评分失败: ${error.message || error}`);
+      } finally {
+        assessment.recognition = null;
+        assessment.finishing = false;
+      }
+    }
+
+    function setupRecognition(language) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        throw new Error('当前浏览器不支持 Web Speech API。建议使用最新版 Chrome 或 Safari 测试。');
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = language || 'ja-JP';
+      recognition.interimResults = true;
+      recognition.continuous = false;
+      recognition.maxAlternatives = 5;
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        assessment.alternatives = [];
+        for (let index = 0; index < event.results.length; index += 1) {
+          const result = event.results[index];
+          const alternatives = Array.from(result).slice(0, recognition.maxAlternatives).map(item => ({
+            transcript: item.transcript,
+            confidence: item.confidence,
+            isFinal: result.isFinal,
+          }));
+          assessment.alternatives.push(...alternatives);
+          const best = result[0];
+          if (result.isFinal) {
+            assessment.finalParts[index] = best.transcript;
+          } else {
+            interimTranscript += best.transcript;
+          }
+        }
+        assessment.finalTranscript = assessment.finalParts.filter(Boolean).join('');
+        assessment.liveTranscript = `${assessment.finalTranscript}${interimTranscript}`;
+        assessmentLive.textContent = assessment.liveTranscript || '--';
+        assessmentRecognized.textContent = assessment.finalTranscript || assessment.liveTranscript || '--';
+      };
+      recognition.onerror = (event) => {
+        assessment.error = `${event.error || 'unknown'}${event.message ? `: ${event.message}` : ''}`;
+        setAssessmentStatus(`识别错误: ${assessment.error}`);
+      };
+      recognition.onend = finishAssessment;
+      return recognition;
+    }
+
+    async function setupAssessmentAudio() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('当前浏览器不支持 getUserMedia，无法请求麦克风权限。');
+      }
+      if (!window.Meyda) {
+        throw new Error('Meyda 加载失败，无法做声学分析。');
+      }
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) {
+        throw new Error('当前浏览器不支持 Web Audio API。');
+      }
+      assessment.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      assessment.audioContext = new AudioContextClass();
+      const source = assessment.audioContext.createMediaStreamSource(assessment.stream);
+      assessment.meydaAnalyzer = Meyda.createMeydaAnalyzer({
+        audioContext: assessment.audioContext,
+        source,
+        bufferSize: 1024,
+        featureExtractors: ["rms", "zcr", "spectralCentroid"],
+        callback: (features) => {
+          const rms = Number(features.rms) || 0;
+          assessment.frames.push({
+            timestamp: (performance.now() - assessment.startTime) / 1000,
+            rms,
+            zcr: Number(features.zcr) || 0,
+            spectralCentroid: Number(features.spectralCentroid) || 0,
+          });
+          assessmentVolume.style.width = `${clamp(0, rms * 450, 100)}%`;
+        },
+      });
+      assessment.meydaAnalyzer.start();
+    }
+
+    async function startAssessment() {
+      const referenceText = assessmentReference.value.trim();
+      if (!referenceText) {
+        setAssessmentStatus('reference text 为空，请先输入日语文本。');
+        return;
+      }
+      if (!assessment.tokenizer) {
+        setAssessmentStatus('kuromoji tokenizer 未加载完成。');
+        return;
+      }
+      if (assessment.active) return;
+      pauseMedia();
+      resetAssessmentDisplay();
+      assessment.frames = [];
+      assessment.alternatives = [];
+      assessment.finalParts = [];
+      assessment.finalTranscript = '';
+      assessment.liveTranscript = '';
+      assessment.error = '';
+      assessment.finishing = false;
+      assessment.startTime = performance.now();
+      assessment.endTime = assessment.startTime;
+      const maxSeconds = clamp(3, Number(assessmentMaxSeconds.value) || 20, 120);
+      assessmentMaxSeconds.value = String(maxSeconds);
+      try {
+        await setupAssessmentAudio();
+        assessment.recognition = setupRecognition(assessmentLanguage.value || 'ja-JP');
+        assessment.active = true;
+        updateAssessmentButtons();
+        setAssessmentStatus('识别中');
+        assessment.recognition.start();
+        assessment.timeoutId = window.setTimeout(() => stopAssessment(), maxSeconds * 1000);
+      } catch (error) {
+        assessment.error = error.message || String(error);
+        if (assessment.error.includes('Permission') || assessment.error.includes('NotAllowed')) {
+          setAssessmentStatus('麦克风权限被拒绝。');
+        } else {
+          setAssessmentStatus(assessment.error);
+        }
+        assessment.active = false;
+        stopAssessmentResources();
+        updateAssessmentButtons();
+      }
+    }
+
+    function stopAssessment() {
+      if (!assessment.active) return;
+      setAssessmentStatus('停止中');
+      if (assessment.recognition) {
+        assessment.recognition.stop();
+      } else {
+        finishAssessment();
+      }
+    }
+
+    function playAssessmentReference() {
+      const referenceText = assessmentReference.value.trim();
+      if (!referenceText) {
+        setAssessmentStatus('reference text 为空，请先输入日语文本。');
+        return;
+      }
+      if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+        setAssessmentStatus('当前浏览器不支持 speechSynthesis。');
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(referenceText);
+      const voices = window.speechSynthesis.getVoices();
+      const japaneseVoice = voices.find(voice => voice.lang?.toLowerCase().startsWith('ja'));
+      if (japaneseVoice) utterance.voice = japaneseVoice;
+      utterance.lang = 'ja-JP';
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+      setAssessmentStatus('播放参考文本');
+    }
+
+    function initializeJapaneseTokenizer() {
+      if (!window.kuromoji) {
+        setAssessmentStatus('kuromoji.js 加载失败。');
+        updateAssessmentButtons();
+        return;
+      }
+      kuromoji.builder({ dicPath: KUROMOJI_DIC_PATH }).build((err, tokenizer) => {
+        if (err) {
+          setAssessmentStatus(`kuromoji tokenizer 加载失败: ${err.message || err}`);
+          updateAssessmentButtons();
+          return;
+        }
+        assessment.tokenizer = tokenizer;
+        setAssessmentStatus('kuromoji tokenizer 已加载');
+        updateAssessmentButtons();
+      });
     }
 
     function timestampToSeconds(timestamp) {
@@ -601,6 +1534,7 @@
       selectedCueIndex = index;
       autoPausedCueIndex = -1;
       const cue = cues[index];
+      setAssessmentReferenceFromCue(index);
       currentTimeLabel.textContent = `${formatTime(cue.start)} → ${formatTime(cue.end)}`;
       currentCue.innerHTML = renderTimedText(cue.text, cue.start + 0.001, true);
       updateShadowingButton();
@@ -868,8 +1802,21 @@
       const button = event.target?.closest?.('button');
       recordingActions[button?.dataset.recordingAct]?.();
     });
+
+    const assessmentActions = {
+      start: startAssessment,
+      stop: stopAssessment,
+      'play-reference': playAssessmentReference,
+    };
+
+    assessmentPanel.addEventListener('click', (event) => {
+      const button = event.target?.closest?.('button');
+      assessmentActions[button?.dataset.assessmentAct]?.();
+    });
+
     window.addEventListener('beforeunload', () => {
       clearShadowingPause();
+      stopAssessmentResources();
       stopRecordingStream();
       if (recording.url) URL.revokeObjectURL(recording.url);
     });
@@ -974,6 +1921,8 @@
     }
 
     renderCueList();
+    if (cues.length) setAssessmentReferenceFromCue(0, { force: true });
+    initializeJapaneseTokenizer();
     setRate(1);
     const canUseYouTubeEmbed = Boolean(youtubeId) && window.location.protocol !== 'file:';
     if (localVideoSrc) {

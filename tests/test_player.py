@@ -158,6 +158,32 @@ def test_player_template_includes_shadowing_repeat_mode() -> None:
     assert "KeyS" in page
 
 
+def test_player_template_includes_free_shadowing_assessment() -> None:
+    page = player.build_player_html(
+        page_title="Practice",
+        local_video_src="clip.mp4",
+        video_label="clip.mp4",
+        subtitle_label="clip.vtt",
+        cues=[{"start": 1.0, "end": 2.0, "text": "字幕"}],
+        source_url=None,
+        youtube_id=None,
+    )
+
+    assert "免费版评分基于浏览器语音识别" in page
+    assert "https://cdn.jsdelivr.net/npm/meyda@5.6.3/dist/web/meyda.min.js" in page
+    assert "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js" in page
+    assert "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/" in page
+    assert 'id="assessment-reference"' in page
+    assert 'data-assessment-act="start"' in page
+    assert 'data-assessment-act="stop"' in page
+    assert 'data-assessment-act="play-reference"' in page
+    assert "window.SpeechRecognition || window.webkitSpeechRecognition" in page
+    assert 'featureExtractors: ["rms", "zcr", "spectralCentroid"]' in page
+    assert "normalizeJapaneseText" in page
+    assert "buildTokenAlignment" in page
+    assert "calculateAssessmentScores" in page
+
+
 def test_path_to_href_quotes_spaces_and_preserves_url_safe_chars() -> None:
     assert (
         player.path_to_href(r"folder\clip 1 [draft].mp4")

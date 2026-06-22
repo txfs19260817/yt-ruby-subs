@@ -170,6 +170,8 @@ The generated `.player.html` works with a local video file. If only a YouTube so
 
 Click a subtitle line to jump to that cue. The current line scrolls into view, and word timestamps are highlighted when the subtitle file has them.
 
+The player also includes a free Japanese follow-reading score panel. It uses browser Web Speech API recognition, kuromoji.js reading alignment, and Meyda/Web Audio acoustic features. It is only practice feedback, not professional phoneme-level pronunciation assessment.
+
 | Key | Action |
 | --- | --- |
 | `Space` | Play or pause |

@@ -170,6 +170,8 @@ uv run yt-ruby-subs generate ".\downloads\example\video.ja.vtt" --ocr-reference 
 
 点击字幕行可以跳到对应位置。当前字幕会自动滚入视图；如果字幕里有逐词时间戳，播放器会同步高亮词。
 
+播放器也带一个免费的日语跟读评分面板。它使用浏览器 Web Speech API 识别、kuromoji.js 读音对齐，以及 Meyda/Web Audio 声学特征，只适合作为练习反馈，不是专业音素级 pronunciation assessment。
+
 | 按键 | 动作 |
 | --- | --- |
 | `Space` | 播放或暂停 |
