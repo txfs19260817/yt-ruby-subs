@@ -169,7 +169,7 @@ def test_player_template_includes_free_shadowing_assessment() -> None:
         youtube_id=None,
     )
 
-    assert "免费版评分基于浏览器语音识别" in page
+    assert "免费版评分基于浏览器语音识别" not in page
     assert "https://cdn.jsdelivr.net/npm/meyda@5.6.3/dist/web/meyda.min.js" in page
     assert "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js" in page
     assert "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/" in page
@@ -177,6 +177,11 @@ def test_player_template_includes_free_shadowing_assessment() -> None:
     assert 'data-assessment-act="start"' in page
     assert 'data-assessment-act="stop"' in page
     assert 'data-assessment-act="play-reference"' in page
+    assert ".video-panel" in page
+    assert "overflow: auto" in page
+    assert "参考文本" in page
+    assert "开始跟读评分" in page
+    assert "播放参考文本" in page
     assert "window.SpeechRecognition || window.webkitSpeechRecognition" in page
     assert 'featureExtractors: ["rms", "zcr", "spectralCentroid"]' in page
     assert "normalizeJapaneseText" in page

@@ -47,7 +47,12 @@
       min-height: 0;
       overflow: hidden;
     }
-    .video-panel { display: flex; flex-direction: column; gap: 0.4rem; }
+    .video-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      overflow: auto;
+    }
     article h1, article h2, article p, article small, article div, article header { color: inherit; }
     .title-row {
       display: flex;
@@ -188,16 +193,6 @@
       margin: 0;
       font-size: 0.78rem;
       line-height: 1.1;
-    }
-    .assessment-warning {
-      margin: 0 0 0.75rem;
-      padding: 0.75rem 0.9rem;
-      border: 1px solid rgba(255, 209, 102, 0.32);
-      border-radius: 0.65rem;
-      background: rgba(255, 209, 102, 0.1);
-      color: #ffe7a8;
-      font-size: 0.88rem;
-      line-height: 1.45;
     }
     .assessment-panel {
       flex: 0 0 auto;
@@ -455,9 +450,6 @@
 </head>
 <body>
   <main class="container-fluid">
-    <section class="assessment-warning" role="note">
-      免费版评分基于浏览器语音识别 + 日语文本/读音对齐 + 简单声学特征，只适合作为练习反馈，不等同于专业音素级 pronunciation assessment。Web Speech API 可能会把音频发送到浏览器厂商的识别服务。
-    </section>
     <div class="layout">
       <article class="video-panel">
         <header>
@@ -506,66 +498,66 @@
         <section class="assessment-panel" id="assessment-panel" aria-labelledby="assessment-title">
           <h2 id="assessment-title">免费日语跟读评分</h2>
           <label for="assessment-reference">
-            Reference Text
+            参考文本
             <textarea id="assessment-reference" autocomplete="off">私は毎日日本語の発音を練習しています。</textarea>
           </label>
           <div class="assessment-grid">
             <label for="assessment-language">
-              Recognition Language
+              识别语言
               <input id="assessment-language" type="text" value="ja-JP" autocomplete="off">
             </label>
             <label for="assessment-max-seconds">
-              Max recording seconds
+              最长录音秒数
               <input id="assessment-max-seconds" type="number" min="3" max="120" step="1" value="20">
             </label>
           </div>
           <div class="assessment-controls">
-            <button type="button" data-assessment-act="start" disabled>Start Reading</button>
-            <button type="button" data-assessment-act="stop" disabled>Stop</button>
-            <button type="button" data-assessment-act="play-reference">Play Reference</button>
+            <button type="button" data-assessment-act="start" disabled>开始跟读评分</button>
+            <button type="button" data-assessment-act="stop" disabled>停止</button>
+            <button type="button" data-assessment-act="play-reference">播放参考文本</button>
           </div>
           <div class="volume-meter" aria-label="实时音量"><span id="assessment-volume"></span></div>
           <div id="assessment-status" class="player-note recording-status" role="status">kuromoji tokenizer 加载中...</div>
           <div class="assessment-score-grid" aria-label="跟读评分">
-            <div class="score-card"><small>Overall Japanese Follow-reading Score</small><strong id="score-overall">--</strong></div>
-            <div class="score-card"><small>Token Accuracy</small><strong id="score-token">--</strong></div>
-            <div class="score-card"><small>Kana / Reading Similarity</small><strong id="score-kana">--</strong></div>
-            <div class="score-card"><small>Completeness</small><strong id="score-completeness">--</strong></div>
-            <div class="score-card"><small>Fluency</small><strong id="score-fluency">--</strong></div>
-            <div class="score-card"><small>Estimated Tokens Per Minute</small><strong id="score-tpm">--</strong></div>
+            <div class="score-card"><small>日语跟读总分</small><strong id="score-overall">--</strong></div>
+            <div class="score-card"><small>词级准确率</small><strong id="score-token">--</strong></div>
+            <div class="score-card"><small>假名/读音相似度</small><strong id="score-kana">--</strong></div>
+            <div class="score-card"><small>完整度</small><strong id="score-completeness">--</strong></div>
+            <div class="score-card"><small>流利度</small><strong id="score-fluency">--</strong></div>
+            <div class="score-card"><small>估算每分钟词数</small><strong id="score-tpm">--</strong></div>
           </div>
           <div class="assessment-metric-grid" aria-label="声学分析">
-            <div class="metric-card"><small>Long Pauses</small><strong id="metric-pauses">--</strong></div>
-            <div class="metric-card"><small>Silence Ratio</small><strong id="metric-silence">--</strong></div>
-            <div class="metric-card"><small>Average RMS</small><strong id="metric-rms">--</strong></div>
+            <div class="metric-card"><small>长停顿次数</small><strong id="metric-pauses">--</strong></div>
+            <div class="metric-card"><small>静音比例</small><strong id="metric-silence">--</strong></div>
+            <div class="metric-card"><small>平均音量 RMS</small><strong id="metric-rms">--</strong></div>
           </div>
           <label>
-            Recognized Text
+            识别文本
             <div id="assessment-recognized" class="assessment-text-output">--</div>
           </label>
           <label>
-            Live Transcript
+            实时识别
             <div id="assessment-live" class="assessment-text-output">--</div>
           </label>
           <label>
-            Reference Tokens / Readings
+            参考分词 / 读音
             <div id="assessment-reference-tokens" class="assessment-token-output">--</div>
           </label>
           <label>
-            Recognized Tokens / Readings
+            识别分词 / 读音
             <div id="assessment-recognized-tokens" class="assessment-token-output">--</div>
           </label>
           <div class="assessment-table-wrap">
             <table class="assessment-table" aria-label="日语分词和读音对齐">
               <thead>
                 <tr>
-                  <th>Ref Surface</th>
-                  <th>Ref Reading</th>
-                  <th>Recognized Surface</th>
-                  <th>Recognized Reading</th>
-                  <th>Operation</th>
-                  <th>Similarity</th>
-                  <th>Score</th>
+                  <th>参考原文</th>
+                  <th>参考读音</th>
+                  <th>识别原文</th>
+                  <th>识别读音</th>
+                  <th>对齐类型</th>
+                  <th>相似度</th>
+                  <th>单项分</th>
                 </tr>
               </thead>
               <tbody id="assessment-alignment-body">
@@ -574,7 +566,7 @@
             </table>
           </div>
           <details class="assessment-debug">
-            <summary>Raw debug JSON</summary>
+            <summary>原始调试 JSON</summary>
             <pre id="assessment-debug-json">{}</pre>
           </details>
         </section>
